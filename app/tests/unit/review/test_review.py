@@ -1,8 +1,7 @@
 import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
-from app.bot.review import SpacedReview
+from app.bot.spaced_review.review import SpacedReview
 from app.data.models import User, Word
-from datetime import timedelta, datetime, timezone
 
 from app.tests.unit.review.conftest import sample_review_words
 

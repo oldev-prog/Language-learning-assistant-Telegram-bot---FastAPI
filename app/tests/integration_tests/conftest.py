@@ -1,22 +1,12 @@
 # test/integration/conftest.py
 import pytest
 import httpx
-import asyncio
-from pathlib import Path
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from unittest.mock import AsyncMock
 
 from app.bot.telegram_bot import Services
 from app.bot.telegram_bot import TelegramBot
 from app.data.models import User
-from app.data.class_base import Base
-from app.data.word_crud import WordsCRUD
-from app.bot.ai.open_ai import AIClient
-from app.bot.pronunciation import Pronunciation
-from app.bot.review import SpacedReview
-from app.bot.pdf import PDF
-from app.bot.youtube_parsing.youtube_parsing import YouTubeParsing
+
 
 @pytest.fixture(scope='function')
 async def httpx_client():

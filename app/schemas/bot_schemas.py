@@ -9,8 +9,10 @@ class ReviewState(str, Enum):
 
 class Commands(str, Enum):
     start = '/start'
-    change_lang = '/change_lang'
-    save = '/save'
+    change_native_lang = '/change_native_lang'
+    change_learning_lang = '/change_learning_lang'
+    save = '/save_word'
     delete_word = '/delete_word'
     words_list = '/words_list'
-    review = '/review'
+    review = '/repeating'
+    reverse_review = '/reverse_repeating'

@@ -2,7 +2,6 @@ from app.bot.telegram_bot import TelegramBot
 from app.data.models import User
 from app.telegram_utils.start_funcs import StartFuncs
 from fastapi.responses import JSONResponse
-# from app.main import bot
 from app.telegram_utils.utils import update_state_to_await, raise_invalid_command, send_message
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx import AsyncClient

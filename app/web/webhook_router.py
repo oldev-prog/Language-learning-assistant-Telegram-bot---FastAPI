@@ -1,11 +1,8 @@
 from app.schemas.request_schemas import Update
 from app.web.services_routers import *
-from app.dependencies import *
-from app.dependencies import session_dep
-from app.data.user_crud import UserCRUD
 from app.main import *
 from app.telegram_utils.utils import answer_callback
-from app.telegram_utils.utils import update_state_to_await
+from app.telegram_utils.utils import update_state_to_await, update_bd
 import asyncio
 
 webhook_router = APIRouter(prefix='/telegram', tags=["Webhook"])
@@ -28,10 +25,14 @@ async def telegram_webhook(
 
     user_states = await user_crud.check_exists(chat_id)
 
+    user_states.message_id = msg_id
+
     if message:
         text = message.text
 
         if text in command_dispatcher.commands:
+            user_states.curr_command = text
+            await update_bd(user_states, db)
             return await command_dispatcher.dispatch(text, user_states, chat_id, client, db, msg_id)
         return await state_dispatcher.dispatch(text, user_states, chat_id, client, msg_id)
 

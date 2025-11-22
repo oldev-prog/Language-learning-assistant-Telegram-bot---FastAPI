@@ -1,12 +1,11 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from sqlalchemy.orm import selectinload
 from fastapi.responses import JSONResponse
-from app.data.models import Word, User
+from app.data.models import Word, User, WordRevers
 from datetime import datetime, timezone
 from app.decorators import log_calls
 import logging
-from app.telegram_utils.utils import send_message, update_bd
+from app.telegram_utils.utils import send_message
 from httpx import AsyncClient
 
 logger = logging.getLogger(__name__)
@@ -24,12 +23,20 @@ class WordsCRUD:
             translate=user_states.last_translate,
             language=user_states.lang_code,
         )
+        new_reverse_word = WordRevers(
+            chat_id=chat_id,
+            word=user_states.last_translate,
+            translate=word,
+            language=user_states.lang_code,
+        )
+
         logger.debug('adding new word to database: %s', new_word.word)
-        self.db.add(new_word)
+        self.db.add_all([new_word, new_reverse_word])
 
         try:
             await self.db.commit()
             await self.db.refresh(new_word)
+            await self.db.refresh(new_reverse_word)
             logger.info(
                 'database update, new word: %s, chat_id: %s',
                 new_word.word, new_word.chat_id
@@ -72,6 +79,26 @@ class WordsCRUD:
                     Word.chat_id == chat_id,
                     Word.language == user_states.lang_code,
                     Word.review_time <= datetime.now(timezone.utc)
+                )
+            )
+            logger.debug('database access for words, chat_id=%s, lang=%s', chat_id, user_states.lang_code)
+        except Exception as e:
+            logger.exception('failed to get words from database')
+            raise
+
+        words = res.scalars().all()
+        logger.info('words retrieved from database: %i', len(words))
+
+        return words
+
+    @log_calls
+    async def get_words_for_reverse_review(self, chat_id: int, user_states: User):
+        try:
+            res = await self.db.execute(
+                select(WordRevers).where(
+                    WordRevers.chat_id == chat_id,
+                    WordRevers.language == user_states.lang_code,
+                    WordRevers.review_time <= datetime.now(timezone.utc)
                 )
             )
             logger.debug('database access for words, chat_id=%s, lang=%s', chat_id, user_states.lang_code)

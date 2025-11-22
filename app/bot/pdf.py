@@ -4,15 +4,13 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
-from sqlalchemy.sql.base import elements
 from typing import Callable
 from app.data.models import Word
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph
 from typing import List
 import logging
-from app.decorators import log_calls, except_timeout
+from app.decorators import log_calls
 from app.config import send_document_url
-from app.telegram_utils.utils import send_message
 from httpx import AsyncClient
 
 

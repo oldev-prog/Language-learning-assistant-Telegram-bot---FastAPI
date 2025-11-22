@@ -30,6 +30,21 @@ class Word(Base):
     user: Mapped['User'] = relationship(back_populates='words')
 
 
+class WordRevers(Base):
+    __tablename__ = 'revers_words'
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    chat_id: Mapped[int]
+    word: Mapped[str] = mapped_column(Text)
+    translate: Mapped[str] = mapped_column(String(250))
+    language: Mapped[str] = mapped_column(String(2))
+    created_at: Mapped[time] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    review_time: Mapped[time] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now())
+    interval: Mapped[int] = mapped_column(default=1)
+    quality: Mapped[int] = mapped_column(default=0)
+    repetitions: Mapped[int] = mapped_column(default=0)
+
+
 class User(Base):
     __tablename__ = 'users'
 
@@ -41,6 +56,9 @@ class User(Base):
     last_word: Mapped[str] = mapped_column(default='')
     last_translate: Mapped[str] = mapped_column(default='')
     review_index: Mapped[int] = mapped_column(default=0)
+    message_id: Mapped[int] = mapped_column(nullable=True)
+    curr_command: Mapped[str] = mapped_column(nullable=True)
+    invalid_reply_count: Mapped[int] = mapped_column(nullable=True)
 
     words: Mapped[List['Word']] = relationship(back_populates='user', lazy='selectin')
 

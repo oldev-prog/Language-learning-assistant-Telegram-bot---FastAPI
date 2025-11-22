@@ -220,30 +220,3 @@ class ProxyManager:
                 logger.info('proxy: %s has been changed', self.proxies[self.index-1])
                 continue
 
-    # def to_dict(self):
-    #     return {
-    #         'keys': [key.key for key in self.keys],
-    #         'index': self.index,
-    #     }
-    #
-    # @classmethod
-    # def from_dict(cls, data: dict, service_factory: Callable[[str], Any]):
-    #     km = cls([], service_factory)
-    #     km.keys = [Key(key, service_factory) for key in data['keys']]
-    #     km.index = data['index']
-    #     return km
-
-
-    # def to_dict(self):
-    #     return {
-    #         'active': self.active,
-    #         'index': self.index,
-    #         'proxies': self.proxies,
-    #     }
-    #
-    # @classmethod
-    # def from_dict(cls, data: dict):
-    #     pm = cls(data['proxies'])
-    #     pm.active = data['active']
-    #     pm.index = data['index']
-    #     return pm

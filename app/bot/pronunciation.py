@@ -3,7 +3,7 @@ from gtts import gTTS
 import aiofiles
 import tempfile
 import os
-from app.config import BOT_TOKEN, send_voice_url
+from app.config import send_voice_url
 import logging
 from app.decorators import log_calls, except_timeout, send_action
 from httpx import AsyncClient

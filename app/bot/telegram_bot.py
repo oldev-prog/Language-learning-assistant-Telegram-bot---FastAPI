@@ -1,23 +1,17 @@
-from app.data.user_crud import UserCRUD
 from app.decorators import except_timeout, send_action
 from app.telegram_utils.utils import send_message
-from app.data.models import User, Word
-from app.bot.review import SpacedReview
+from app.data.models import User
+from app.bot.spaced_review.review import SpacedReview
 from app.data.word_crud import WordsCRUD
 from app.bot.pronunciation import Pronunciation
-from app.schemas.bot_schemas import ReviewState
 from app.bot.ai.open_ai import AIClient
 from app.telegram_utils.utils import update_bd
-from app.dependencies import session_dep
 from app.bot.pdf import PDF
-from io import BytesIO
 from app.bot.youtube_parsing.youtube_parsing import YouTubeParsing
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx import AsyncClient
-import asyncio
-from app.config import send_action_url
-from app.telegram_utils.bottom_funcs import send_inline_keyboard, send_keyboard
+from app.telegram_utils.bottom_funcs import send_keyboard
 from app.telegram_utils.bottoms import lang_bottoms
 
 logger = logging.getLogger(__name__)
@@ -116,12 +110,11 @@ class TelegramBot:
 
     @send_action()
     @except_timeout(3)
-    async def change_lang(self, chat_id: int, user_state: User):
+    async def change_learning_lang(self, chat_id: int, user_state: User):
         user_state.state = 'await_lang'
         await update_bd(user_state, self.services.db)
 
         await send_keyboard(chat_id, lang_bottoms, self.services.client, True, 'What language do you want to learn?')
-
 
 
     @except_timeout(5)
@@ -142,7 +135,16 @@ class TelegramBot:
 
 
     async def spaced_review(self, chat_id: int, text: str, user_state: User, client: AsyncClient, reply_to_id: int):
-        if user_state.state == 'ready':
-            await self.services.review_obj.start_review(chat_id=chat_id, user_state=user_state, text=text, client=client)
+        if user_state.curr_command == '/repeating':
+            word_param = 'word'
         else:
-            await self.services.review_obj.continue_review(chat_id=chat_id, user_state=user_state, text=text, client=client, reply_to_id=reply_to_id)
+            word_param = 'translate'
+
+        if user_state.state == 'ready':
+            await self.services.review_obj.start_review(chat_id=chat_id, user_state=user_state,
+                                                        text=text, client=client, model_param=word_param)
+        else:
+            await self.services.review_obj.continue_review(chat_id=chat_id, user_state=user_state, text=text,
+                                                           client=client, reply_to_id=reply_to_id, model_param=word_param)
+
+

@@ -1,9 +1,8 @@
 import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, Mock, call
-from typing import List
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock
 import httpx
-from app.bot.review import SpacedReview, ReviewState
+from app.bot.spaced_review.review import SpacedReview
 from app.data.models import Word, User
 
 

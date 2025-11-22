@@ -17,10 +17,12 @@ class CommandDispatcher:
         self.client = client
         self.commands = {
             '/start': self.handle_start,
-            '/change_lang': self.handle_change_lang,
-            '/save': self.handle_save,
+            '/change_learning_lang': self.handle_change_lang,
+            '/change_native_lang': self.handle_start,
+            '/save_word': self.handle_save,
             '/words_list': self.handle_words_list,
-            '/review': self.handle_review,
+            '/repeating': self.handle_review,
+            '/reverse_repeating': self.handle_review,
             '/delete_word': self.handle_delete_word,
         }
 
@@ -42,7 +44,7 @@ class CommandDispatcher:
         )
 
     async def handle_change_lang(self, user_states: User, chat_id: int, text: str, client: AsyncClient, db: AsyncSession, msg_id: int):
-        await self.bot.change_lang(user_state=user_states, chat_id=chat_id)
+        await self.bot.change_learning_lang(user_state=user_states, chat_id=chat_id)
         return JSONResponse(
             {
                 'success': True, 'details': 'language has been successfully changed.'

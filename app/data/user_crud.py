@@ -1,7 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from fastapi.responses import JSONResponse
 from app.data.models import User, Word
 import logging
 from app.decorators import log_calls

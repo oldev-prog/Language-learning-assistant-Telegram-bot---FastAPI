@@ -1,5 +1,3 @@
-from googleapiclient.mimeparse import quality
-
 from app.data.models import Word, User
 from datetime import datetime, timedelta, timezone
 from app.telegram_utils.utils import send_message
@@ -13,7 +11,7 @@ from app.dependencies import session_dep
 from typing import List
 import logging
 from httpx import AsyncClient
-from app.bot.review_states import review_states
+from app.bot.spaced_review.review_states import review_states
 from app.decorators import send_action, except_timeout
 
 logger = logging.getLogger(__name__)
@@ -88,12 +86,21 @@ class SpacedReview:
         return words
 
 
-    async def check_word_quality(self, chat_id: int, word: Word, quality: int, user_state: User, reply_to: int):
+    async def check_word_quality(self, chat_id: int, word: Word, quality: int, user_state: User):
         if quality == 0:
 
-            await send_message(chat_id, f'Translation of a forgotten word: {word.translate}', user_state, self.client, reply_to_message_id=reply_to)
+            if user_state.curr_command == '/repeating':
+                word_param = 'word'
+            else:
+                word_param = 'translate'
 
-            await self.pronunciation.send_voice(chat_id=chat_id, word=word.word, lang=user_state.lang_code, reply_to=reply_to)
+            word_for_voice_msg = getattr(word, word_param)
+
+            await send_message(chat_id, f'Translation of a forgotten word: {word.translate}', user_state, self.client, reply_to_message_id=user_state.message_id - 1)
+
+            await self.pronunciation.send_voice(chat_id=chat_id, word=word_for_voice_msg, lang=user_state.lang_code, reply_to=user_state.message_id - 1)
+
+            # await  send_inline_keyboard(chat_id=chat_id, client=client, text=text, reply_to=reply_to)
 
 
     async def check_valid_answer(self, chat_id: int, msg: str, user_state: User, reply_to: int):
@@ -103,19 +110,24 @@ class SpacedReview:
             await send_message(chat_id, 'Invalid answer', user_state, self.client, reply_to_message_id=reply_to)
             return False
 
+        user_state.invalid_reply_count = 1
+        await update_bd(user_state, self.db)
         return True
 
 
-    async def check_if_finish(self, chat_id: int, word: Word, words: list[Word], user_state: User, text: str, quality: int, reply_to_id: int):
+    async def check_if_finish(self, chat_id: int, word: Word, words: list[Word], user_state: User, text: str, quality: int, reply_to_id: int, model_param: str):
         if user_state.review_index == len(words) - 1 or text == 'finish repeating':
-            await self.finish_review(chat_id, word, user_state, quality, reply_to_id)
+            await self.finish_review(chat_id, word, user_state, quality, reply_to_id, model_param)
             return True
 
 
     @send_action()
     @except_timeout(5)
-    async def start_review(self, chat_id: int, user_state: User, text: str, client: AsyncClient):
-        words = await self.word_crud.get_words_for_review(chat_id, user_state)
+    async def start_review(self, chat_id: int, user_state: User, text: str, client: AsyncClient, model_param: str):
+        if user_state.curr_command == '/repeating':
+            words = await self.word_crud.get_words_for_review(chat_id, user_state)
+        else:
+            words = await self.word_crud.get_words_for_reverse_review(chat_id, user_state)
 
         user_state.state = 'await_rating'
 
@@ -125,12 +137,14 @@ class SpacedReview:
 
         await send_message(chat_id=chat_id, user_state=user_state, text="Let's start repeating, evaluate how well you remember this word.", client=self.client)
 
+        word = getattr(words[user_state.review_index], model_param)
+
         await send_keyboard(chat_id, review_bottoms, client, False, words[user_state.review_index].word)
 
 
     @send_action()
     @except_timeout(5)
-    async def continue_review(self, chat_id: int, user_state: User, text: str, client: AsyncClient, reply_to_id: int):
+    async def continue_review(self, chat_id: int, user_state: User, text: str, client: AsyncClient, reply_to_id: int, model_param: str):
         words = review_states[chat_id]
 
         if user_state.review_index == len(words):
@@ -141,13 +155,14 @@ class SpacedReview:
 
         quality = self.quality_map.get(text)
 
-        if await self.check_if_finish(chat_id, word, words, user_state, text, quality, reply_to_id):
+        if await self.check_if_finish(chat_id, word, words, user_state, text, quality, reply_to_id, model_param):
             return {'details':'review has been finished'}
+
 
         if not await self.check_valid_answer(chat_id, text, user_state, reply_to_id):
             return {'details': 'invalid answer'}
 
-        await self.check_word_quality(chat_id, word, quality, user_state, reply_to_id)
+        await self.check_word_quality(chat_id, word, quality, user_state)
 
         await self.update_word_states(quality, word)
 
@@ -158,14 +173,16 @@ class SpacedReview:
         next_word = words[user_state.review_index]
         logger.debug('next word: %s', next_word)
 
-        await send_message(text=next_word.word, chat_id=chat_id, user_state=user_state, client=client)
+        word = getattr(next_word, model_param)
+
+        user_state.message_id = await send_message(text=next_word.word, chat_id=chat_id, user_state=user_state, client=client)
 
         # await send_keyboard(chat_id, review_bottoms, client, True, words[user_state.review_index].word)
 
-    async def finish_review(self, chat_id: int, word: Word, user_state: User, quality: int, reply_to_id: int):
-        await self.check_word_quality(chat_id, word, quality, user_state, reply_to_id)
+    async def finish_review(self, chat_id: int, word: Word, user_state: User, quality: int, reply_to_id: int, model_param: str):
+        await self.check_word_quality(chat_id, word, quality, user_state)
 
-        await send_message(chat_id=chat_id, user_state=user_state, text='Repeating has been finished.', client=self.client)
+        await send_message(chat_id=chat_id, user_state=user_state, text='Repeating has been finished.', client=self.client, remove_keyboard=True)
 
         user_state.state = 'ready'
         user_state.review_index = 0

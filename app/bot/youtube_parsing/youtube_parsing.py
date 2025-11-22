@@ -231,17 +231,3 @@ class YouTubeParsing:
             user_state.state = 'ready'
 
             await update_bd(user_state, db)
-
-
-    #         if not success:
-    #             await except_timeout(3, chat_id, user_state, send_message, chat_id, 'Видео не найдено.')
-    #         else:
-    #             await except_timeout(3, chat_id, user_state, send_message, chat_id,
-    #                                  f'Найдено видео с данным словом:{link}')
-    #     finally:
-    #         user_state.state = 'ready'
-    #         await update_bd(user_state)
-    #
-    # asyncio.create_task(run_video())
-    # else:
-    # await except_timeout(3, chat_id, user_state, send_message, chat_id, f'Найдено видео с данным словом:{link}')

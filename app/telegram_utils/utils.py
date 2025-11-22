@@ -4,8 +4,6 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.telegram_utils.bottoms import LANGUAGES
 from app.data.models import User, Word
-from app.schemas.bot_schemas import Commands
-#from app.decorators import except_timeout
 from app.config import answer_callback_url
 
 logger = logging.getLogger(__name__)
@@ -31,6 +29,7 @@ async def send_message(chat_id: int, text: str, user_state: User, client: httpx.
             print('Error')
         else:
             data = resp.json()
+            return data['result']['message_id']
 
     except Exception:
         logger.exception('error sending message')

@@ -2,8 +2,6 @@ import logging
 import functools
 import time
 import asyncio
-import httpx
-from app.logger_config import configure_logger
 from app.config import BOT_TOKEN, send_action_url
 from typing import TYPE_CHECKING
 

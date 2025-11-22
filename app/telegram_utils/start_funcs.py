@@ -1,7 +1,6 @@
 from app.data.models import User
 import logging
 from app.telegram_utils.utils import update_bd, valid_answer, send_message
-from app.dependencies import session_dep
 from app.telegram_utils.bottom_funcs import send_keyboard
 from app.telegram_utils.bottoms import lang_bottoms, LANGUAGES
 from app.dependencies import db
@@ -63,7 +62,8 @@ class StartFuncs:
                 await update_bd(user_state, db)
 
                 print(f'states before send msg: {user_state}')
-                await send_message(chat_id, f'Selected language: {text}. The bot is ready to work, you can send words.', user_state, client)
+                await send_message(chat_id=chat_id, text=f'Selected language: {text}. The bot is ready to work, you can send words.',
+                                   user_state=user_state, client=client, remove_keyboard=True)
 
             else:
                 await send_keyboard(chat_id, lang_bottoms, client, True, 'What language do you want to learn?')
