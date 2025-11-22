@@ -92,11 +92,11 @@ class AIClient:
                 },
                 json ={
                     # "model": "gpt-4.1-nano",
-                    "model": "gemini-2.5-flash-lite", #20 копеек
-                    # "model": "qwen3-coder-30b-a3b-instruct", #2 копейки
-                    # "model": "mistral-small-3.2-24b-instruct", #3
-                    # "model": "devstral-small", #15
-                    # "model": "mistral-nemo", #1
+                    "model": "gemini-2.5-flash-lite",
+                    # "model": "qwen3-coder-30b-a3b-instruct",
+                    # "model": "mistral-small-3.2-24b-instruct",
+                    # "model": "devstral-small",
+                    # "model": "mistral-nemo",
 
                     "messages": [
                       {"role": "user", "content": prompt},
@@ -123,24 +123,25 @@ class AIClient:
     async def get_explanation(self, word: str, user_state: User, db: AsyncSession):
 
         try:
-            unswear = get_hash(f'word:{word}', user_state.lang_code)
-            logger.debug(f'redis:{unswear.decode('utf8')}') if unswear else None
+            explanation = redis_get_hash(chat_id=user_state.chat_id, field='explanation')
+            logger.debug(f'redis:{explanation.decode('utf-8')}') if explanation else logger.debug(f'redis: {None}')
+            print(f'redis:{explanation.decode('utf-8')}') if explanation else print(f'redis: {None}')
 
-            if unswear is None:
+            if explanation is None:
                 unswear = await self.request(word, user_state)
                 logger.debug(f'unswear:{unswear}')
-                set_hash(f'word:{word}', y=0)#, mapping={self.user_state['lang_code']: unswear})
+                unswear = self.clean_json_block(unswear)
+                logger.debug(f'unswear:{unswear}')
+                unswear = json.loads(unswear)
+                logger.debug(f'type(unswear):{type(unswear)}')
+
+                explanation = self.format_word_explanation(unswear)
+
+                redis_set_hash(chat_id=user_state.chat_id, field='explanation', data=explanation)
+
+                await self.update_user_state(unswear, word, user_state, db)
             else:
-                unswear = unswear.decode('utf-8')
-
-            unswear = self.clean_json_block(unswear)
-            logger.debug(f'unswear:{unswear}')
-            unswear = json.loads(unswear)
-            logger.debug(f'type(unswear):{type(unswear)}')
-
-            explanation = self.format_word_explanation(unswear)
-
-            await self.update_user_state(unswear, word, user_state, db)
+                explanation = explanation.decode('utf-8')
 
             return explanation
 

@@ -5,13 +5,16 @@ from isodate import parse_duration
 from app.bot.youtube_parsing.youtube_config import youtube_keys, proxies
 from app.bot.youtube_parsing.youtube_config import proxy_factory, youtube_factory
 import logging
-from app.data.redis_.redis_crud import set_hash, get_hash
+from app.data.redis_.redis_crud import *
 from app.decorators import log_calls, except_timeout, send_action
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.proxies import GenericProxyConfig
+from youtube_transcript_api.proxies import WebshareProxyConfig
 from app.data.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.telegram_utils.utils import send_message, update_bd
 from httpx import AsyncClient
+from app.data.redis_.redis_crud import *
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +127,7 @@ class YouTubeParsing:
                 break
 
             logger.info('final result for videos: %s', rows)
+            print(f'final result for videos: {rows}')
 
         return rows
 
@@ -135,7 +139,14 @@ class YouTubeParsing:
             #     proxy_config=GenericProxyConfig(http_url=proxy_url)
             # )
 
-            api = YouTubeTranscriptApi()
+            # api = YouTubeTranscriptApi()
+
+            api = YouTubeTranscriptApi(
+                proxy_config=WebshareProxyConfig(
+                    proxy_username="kshvnjqs",
+                    proxy_password="vi9szjouaabo",
+                )
+            )
 
             links = []
 
@@ -192,14 +203,21 @@ class YouTubeParsing:
         videos = await self.search_video(chat_id, word, seen_ids, max_results)
         logger.info('searched video: %s', videos)
 
-        for video in videos:
-            link = await self.get_link(chat_id, video['video_id'], word, lang_code)
-            logger.info('found link: %s', link)
+        link = redis_get_hash(chat_id, 'youtube_link')
+        if link is None:
 
-            if link:
-                set_hash()
+            for video in videos:
+                link = await self.get_link(chat_id, video['video_id'], word, lang_code)
+                logger.info('found link: %s', link)
 
-                return link
+                if link:
+                    redis_set_hash(chat_id, 'youtube_link', link)
+
+                    return link
+        else:
+            link = link.decode('utf-8')
+
+            return link
 
         return None
 

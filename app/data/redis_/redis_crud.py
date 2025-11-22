@@ -1,7 +1,11 @@
+from app.data.redis_.redis_init import r
+import json
 
 
-def get_hash(x,y):
-    pass
+def redis_get_hash(chat_id: int, field: str):
+    result = r.hget(chat_id, field)
+    return result if result else None
 
-def set_hash(x=0,y=0):
-    pass
+
+def redis_set_hash(chat_id: int, field: str, data: str|bytes):
+    r.hset(chat_id, field, data)

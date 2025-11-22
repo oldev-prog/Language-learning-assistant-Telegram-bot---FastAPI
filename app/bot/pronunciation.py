@@ -7,6 +7,7 @@ from app.config import send_voice_url
 import logging
 from app.decorators import log_calls, except_timeout, send_action
 from httpx import AsyncClient
+from app.data.redis_.redis_crud import *
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,13 @@ class Pronunciation:
         logger.debug(f"tmp_filename: {tmp_filename}")
 
         try:
-            async with aiofiles.open(tmp_filename, 'rb') as f:
-                voice_bytes = await f.read()
+            voice_bytes = redis_get_hash(chat_id, 'pronunciation')
+            logger.debug(f'voice_bytes from redis: {voice_bytes}') if voice_bytes else logger.debug(f'voice_bytes from redis: {None}')
+            print(f'voice_bytes from redis: {voice_bytes}') if voice_bytes else print(f'voice_bytes from redis: {None}')
+            if voice_bytes is None:
+                async with aiofiles.open(tmp_filename, 'rb') as f:
+                    voice_bytes = await f.read()
+                redis_set_hash(chat_id, 'pronunciation', voice_bytes)
 
             files = {'voice': (f'{word}.mp3', voice_bytes, 'audio/mpeg')}
             data = {
