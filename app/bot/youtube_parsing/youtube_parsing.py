@@ -5,7 +5,7 @@ from isodate import parse_duration
 from app.bot.youtube_parsing.youtube_config import youtube_keys, proxies
 from app.bot.youtube_parsing.youtube_config import proxy_factory, youtube_factory
 import logging
-from app.data.redis_.redis_crud import *
+from app.data.cache.redis_crud import *
 from app.decorators import log_calls, except_timeout, send_action
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.proxies import GenericProxyConfig
@@ -14,7 +14,7 @@ from app.data.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.telegram_utils.utils import send_message, update_bd
 from httpx import AsyncClient
-from app.data.redis_.redis_crud import *
+from app.data.cache.redis_crud import *
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class YouTubeParsing:
 
 
     @staticmethod
-    def is_valid_video(video_snippet: dict, seen_ids: Set[str]) -> list|None:
+    def is_valid_video(video_snippet: dict, seen_ids: list[str]) -> list|None:
 
         rows = []
 
@@ -33,7 +33,7 @@ class YouTubeParsing:
             if item['id'] in seen_ids:
                 continue
 
-            seen_ids.add(item['id'])
+            seen_ids.append(item['id'])
 
             snippet = item.get('snippet', {})
             content = item.get('contentDetails', {})
@@ -64,7 +64,7 @@ class YouTubeParsing:
     async def search_video(self,
             chat_id: int,
             word: str,
-            seen_ids: Set[str],
+            seen_ids: list[str],
             max_results: int = 20
             ) -> list[dict]:
 
@@ -197,7 +197,7 @@ class YouTubeParsing:
                           word: str,
                           chat_id: int,
                           lang_code: str,
-                          seen_ids: Set[str],
+                          seen_ids: list[str],
                           max_results: int = 20
                           ):
         link = redis_get_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link')
@@ -224,7 +224,7 @@ class YouTubeParsing:
 
     @send_action(6, 'upload_video')
     async def send_result(self, chat_id: int, user_state: User, db: AsyncSession, client: AsyncClient):
-        seen_videos = set()
+        seen_videos = []
 
         word = user_state.last_word
         if not word:

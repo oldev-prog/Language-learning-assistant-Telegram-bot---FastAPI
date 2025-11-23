@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from httpx import AsyncClient
 from app.telegram_utils.utils import update_bd
 import asyncio
+from app.celery.tasks import tts_task, youtube_parsing_task
 
 class StateDispatcher:
     def __init__(self, bot: TelegramBot, db: AsyncSession):

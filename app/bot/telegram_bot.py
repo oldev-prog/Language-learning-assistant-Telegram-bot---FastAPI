@@ -73,8 +73,11 @@ class TelegramBot:
 
 
     async def send_pronunciation(self, chat_id: int, user_state: User, reply_to_id: int):
-        word = user_state.last_word
-        await self.services.pronunciation_obj.send_voice(chat_id=chat_id, word=word, lang=user_state.lang_code, reply_to=reply_to_id)
+        tts = await self.services.pronunciation_obj.generate_tts(user_state.last_word, user_state.lang_code, chat_id)
+
+        await self.services.pronunciation_obj.send_voice(chat_id=chat_id, word=user_state.last_word,
+                                                         lang=user_state.lang_code, reply_to=reply_to_id,
+                                                         tts_data=tts)
 
         await self.update_user_state(user_state)
 

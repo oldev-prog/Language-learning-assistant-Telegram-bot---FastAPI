@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from app.data.redis_.redis_crud import *
+from app.data.cache.redis_crud import *
 from app.decorators import log_calls, except_timeout
 from app.telegram_utils.utils import detect_same_language
 from app.telegram_utils.bottoms import LANGUAGES

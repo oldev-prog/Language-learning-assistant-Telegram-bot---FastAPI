@@ -1,4 +1,4 @@
-from app.data.redis_.redis_init import r
+from app.data.cache.redis_init import r
 import json
 
 
