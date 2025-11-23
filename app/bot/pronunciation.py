@@ -49,13 +49,13 @@ class Pronunciation:
         logger.debug(f"tmp_filename: {tmp_filename}")
 
         try:
-            voice_bytes = redis_get_hash(chat_id, 'pronunciation')
+            voice_bytes = redis_get_hash(chat_id=chat_id, word=word, lang=lang, field='pronunciation')
             logger.debug(f'voice_bytes from redis: {voice_bytes}') if voice_bytes else logger.debug(f'voice_bytes from redis: {None}')
             print(f'voice_bytes from redis: {voice_bytes}') if voice_bytes else print(f'voice_bytes from redis: {None}')
             if voice_bytes is None:
                 async with aiofiles.open(tmp_filename, 'rb') as f:
                     voice_bytes = await f.read()
-                redis_set_hash(chat_id, 'pronunciation', voice_bytes)
+                redis_set_hash(chat_id=chat_id, word=word, lang=lang, field='pronunciation', data=voice_bytes)
 
             files = {'voice': (f'{word}.mp3', voice_bytes, 'audio/mpeg')}
             data = {

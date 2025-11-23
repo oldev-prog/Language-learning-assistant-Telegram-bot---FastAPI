@@ -139,14 +139,14 @@ class YouTubeParsing:
             #     proxy_config=GenericProxyConfig(http_url=proxy_url)
             # )
 
-            # api = YouTubeTranscriptApi()
+            api = YouTubeTranscriptApi()
 
-            api = YouTubeTranscriptApi(
-                proxy_config=WebshareProxyConfig(
-                    proxy_username="kshvnjqs",
-                    proxy_password="vi9szjouaabo",
-                )
-            )
+            # api = YouTubeTranscriptApi(
+            #     proxy_config=WebshareProxyConfig(
+            #         proxy_username="kshvnjqs",
+            #         proxy_password="vi9szjouaabo",
+            #     )
+            # )
 
             links = []
 
@@ -200,22 +200,23 @@ class YouTubeParsing:
                           seen_ids: Set[str],
                           max_results: int = 20
                           ):
-        videos = await self.search_video(chat_id, word, seen_ids, max_results)
-        logger.info('searched video: %s', videos)
+        link = redis_get_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link')
+        print(f'link from redis: {link}') if link else  print(f'link from redis: {None}')
 
-        link = redis_get_hash(chat_id, 'youtube_link')
         if link is None:
+            videos = await self.search_video(chat_id, word, seen_ids, max_results)
+            logger.info('searched video: %s', videos)
 
             for video in videos:
                 link = await self.get_link(chat_id, video['video_id'], word, lang_code)
                 logger.info('found link: %s', link)
 
                 if link:
-                    redis_set_hash(chat_id, 'youtube_link', link)
+                    redis_set_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link', data=link)
 
                     return link
         else:
-            link = link.decode('utf-8')
+            # link = link.decode('utf-8')
 
             return link
 
@@ -235,7 +236,6 @@ class YouTubeParsing:
         await update_bd(user_state, db)
 
         try:
-            logger.debug('calling run_parsing')
             link = await self.run_parsing(word, chat_id, lang_code, seen_videos, 10)
             logger.debug('run parsing result: %s', link)
             if not link:
@@ -244,7 +244,7 @@ class YouTubeParsing:
                 await send_message(chat_id, f'Videos found with this word:{link}', user_state, client)
         except Exception as e:
             logger.exception('Error: %s', e)
-            await send_message(chat_id, f'Error searching for video.', user_state, client)
+            await send_message(chat_id, 'Video search is currently unavailable. Please try again later.', user_state, client)
         finally:
             user_state.state = 'ready'
 

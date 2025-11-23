@@ -65,6 +65,9 @@ class AIClient:
         return s
 
     def format_word_explanation(self, data: dict) -> str:
+        if isinstance(data, str):
+            data = json.loads(data)
+        print(f'data for word explanation: {data}, {type(data)}')
         return (
             f"=== Translation ===\n"
             f"{data['translation']}\n\n"
@@ -123,11 +126,11 @@ class AIClient:
     async def get_explanation(self, word: str, user_state: User, db: AsyncSession):
 
         try:
-            explanation = redis_get_hash(chat_id=user_state.chat_id, field='explanation')
-            logger.debug(f'redis:{explanation.decode('utf-8')}') if explanation else logger.debug(f'redis: {None}')
-            print(f'redis:{explanation.decode('utf-8')}') if explanation else print(f'redis: {None}')
+            unswear = redis_get_hash(chat_id=user_state.chat_id, word=word, lang=user_state.lang_code, field='explanation')
+            logger.debug(f'redis:{unswear}') if unswear else logger.debug(f'redis: {None}')
+            print(f'redis:{unswear}') if unswear else print(f'redis: {None}')
 
-            if explanation is None:
+            if unswear is None:
                 unswear = await self.request(word, user_state)
                 logger.debug(f'unswear:{unswear}')
                 unswear = self.clean_json_block(unswear)
@@ -135,13 +138,16 @@ class AIClient:
                 unswear = json.loads(unswear)
                 logger.debug(f'type(unswear):{type(unswear)}')
 
-                explanation = self.format_word_explanation(unswear)
+                redis_set_hash(chat_id=user_state.chat_id, word=word, lang=user_state.lang_code,
+                               field='explanation', data=unswear)
 
-                redis_set_hash(chat_id=user_state.chat_id, field='explanation', data=explanation)
+                explanation = self.format_word_explanation(unswear)
 
                 await self.update_user_state(unswear, word, user_state, db)
             else:
-                explanation = explanation.decode('utf-8')
+                explanation = self.format_word_explanation(unswear)
+
+                await self.update_user_state(unswear, word, user_state, db)
 
             return explanation
 
@@ -151,6 +157,8 @@ class AIClient:
 
 
     async def update_user_state(self, data: dict, word: str, user_state: User, db: AsyncSession):
+        if isinstance(data, str):
+            data = json.loads(data)
 
         logger.debug('lang_code: %s, native_lang: %s', data['lang_code'], LANGUAGES[user_state.native_lang])
         same_language = await detect_same_language(data['lang_code'], LANGUAGES[user_state.native_lang])

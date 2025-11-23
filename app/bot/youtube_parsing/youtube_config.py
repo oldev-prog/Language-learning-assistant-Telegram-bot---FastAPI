@@ -13,17 +13,18 @@ youtube_keys = [
 
 
 proxies = [
-    os.getenv('PROXI_CONFIG1'),
-    os.getenv('PROXI_CONFIG2'),
-    os.getenv('PROXI_CONFIG3'),
-    os.getenv('PROXI_CONFIG4'),
-    os.getenv('PROXI_CONFIG5'),
-    os.getenv('PROXI_CONFIG6'),
-    os.getenv('PROXI_CONFIG7'),
-    os.getenv('PROXI_CONFIG8'),
-    os.getenv('PROXI_CONFIG9'),
-    os.getenv('PROXI_CONFIG10'),
-    os.getenv('PROXI_CONFIG11'),
+    # os.getenv('PROXI_CONFIG1'),
+    # os.getenv('PROXI_CONFIG2'),
+    # os.getenv('PROXI_CONFIG3'),
+    # os.getenv('PROXI_CONFIG4'),
+    # os.getenv('PROXI_CONFIG5'),
+    # os.getenv('PROXI_CONFIG6'),
+    # os.getenv('PROXI_CONFIG7'),
+    # os.getenv('PROXI_CONFIG8'),
+    # os.getenv('PROXI_CONFIG9'),
+    # os.getenv('PROXI_CONFIG10'),
+    # os.getenv('PROXI_CONFIG11'),
+    os.getenv('PROXI_CONFIG12'),
 ]
 
 

@@ -211,6 +211,7 @@ class ProxyManager:
     async def execute(self, fn: Callable[[str], Awaitable[Any]]):
         while True:
             proxy = self.get_proxy()
+            print(f'proxy {proxy}')
             if proxy is None:
                 raise RuntimeError('all proxies failed.')
             try:
