@@ -65,19 +65,21 @@ class TelegramBot:
     @send_action()
     async def explain_word(self, *, chat_id: int, word: str, user_state: User, reply_to_id: int):
 
-        result = await self.services.ai_client.get_explanation(word=word, user_state=user_state, db=self.services.db)
+        result, word_for_tasks = await self.services.ai_client.get_explanation(word=word, user_state=user_state, db=self.services.db)
 
         await self.services.ai_client.send_result(chat_id, self.services.client, result, reply_to_id, user_state)
 
         await self.update_user_state(user_state)
 
+        return word_for_tasks
+
 
     async def send_pronunciation(self, chat_id: int, user_state: User, reply_to_id: int):
-        tts = await self.services.pronunciation_obj.generate_tts(user_state.last_word, user_state.lang_code, chat_id)
+        # tts = await self.services.pronunciation_obj.generate_tts(user_state.last_word, user_state.lang_code, chat_id)
 
         await self.services.pronunciation_obj.send_voice(chat_id=chat_id, word=user_state.last_word,
                                                          lang=user_state.lang_code, reply_to=reply_to_id,
-                                                         tts_data=tts)
+                                                         user_state=user_state)
 
         await self.update_user_state(user_state)
 

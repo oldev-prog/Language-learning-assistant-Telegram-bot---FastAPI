@@ -67,7 +67,21 @@ class StateDispatcher:
     async def handle_ready(self, user_states: User, chat_id: int, text: str, db: AsyncSession, client: AsyncClient, msg_id: int):
         if text != 'invalid command':
             await update_state_to_await(user_states, db)
-            asyncio.create_task(self.bot.explain_word(chat_id=chat_id, word=text, user_state=user_states, reply_to_id=msg_id))
+
+            task = asyncio.create_task(self.bot.explain_word(chat_id=chat_id, word=text, user_state=user_states, reply_to_id=msg_id))
+
+            def start_tasks(fut):
+                word = user_states.last_word
+                lang = user_states.lang_code
+
+                tts_task.delay(chat_id=chat_id, word=word, lang=lang)
+
+                empty_list = []
+
+                youtube_parsing_task.delay(chat_id=chat_id, word=word, lang_code=lang, seen_videos=empty_list)
+
+            task.add_done_callback(start_tasks)
+
             return JSONResponse(
                 {
                     'success': True, 'details': 'explanation has been successfully done'

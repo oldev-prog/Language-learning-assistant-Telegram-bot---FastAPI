@@ -143,13 +143,13 @@ class AIClient:
 
                 explanation = self.format_word_explanation(unswear)
 
-                await self.update_user_state(unswear, word, user_state, db)
+                word = await self.update_user_state(unswear, word, user_state, db)
             else:
                 explanation = self.format_word_explanation(unswear)
 
-                await self.update_user_state(unswear, word, user_state, db)
+                word = await self.update_user_state(unswear, word, user_state, db)
 
-            return explanation
+            return explanation, word
 
         except Exception as e:
             logger.exception(f'Error: {e}')
@@ -177,6 +177,8 @@ class AIClient:
         logger.debug(f'user_states:{user_state.__dict__}')
 
         await update_bd(user_state, db)
+
+        return word_for_save
 
 
     async def send_result(self, chat_id: int, client: AsyncClient, text: str, reply_to: int, user_state: User):

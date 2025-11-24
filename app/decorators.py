@@ -27,6 +27,20 @@ def log_calls(func):
 
     return wrapper
 
+def sync_log_calls(func):
+    logger = logging.getLogger(func.__module__)
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger.info('called %s with args: %s, %s', func.__name__, args, kwargs)
+        start = time.time()
+        result = func(*args, **kwargs)
+        finish = time.time() - start
+        logger.info('finished %s for %f seconds, with result: %s', func.__name__, finish, result)
+
+        return result
+
+    return wrapper
 
 def except_timeout(timeout: float):
     def decorator(func):
@@ -56,6 +70,7 @@ def except_timeout(timeout: float):
         return wrapper
 
     return decorator
+
 
 
 def send_action(seconds: float=0, action: str='typing'):

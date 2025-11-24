@@ -6,7 +6,7 @@ from app.bot.youtube_parsing.youtube_config import youtube_keys, proxies
 from app.bot.youtube_parsing.youtube_config import proxy_factory, youtube_factory
 import logging
 from app.data.cache.redis_crud import *
-from app.decorators import log_calls, except_timeout, send_action
+from app.decorators import log_calls, except_timeout, send_action, sync_log_calls
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.proxies import GenericProxyConfig
 from youtube_transcript_api.proxies import WebshareProxyConfig
@@ -60,8 +60,8 @@ class YouTubeParsing:
 
         return rows
 
-    @log_calls
-    async def search_video(self,
+    @sync_log_calls
+    def search_video(self,
             chat_id: int,
             word: str,
             seen_ids: list[str],
@@ -76,20 +76,19 @@ class YouTubeParsing:
         while len(rows) < max_results and page < 3:
             page += 1
 
-            search_response = await self.youtube_manager.execute(
-                lambda service: asyncio.to_thread(
-                    lambda s=service: s.search().list(
-                    q=word,
-                    part="id",
-                    type="video",
-                    order="relevance",
-                    videoCaption="closedCaption",
-                    maxResults=min(50, max_results - collected),
-                    pageToken=token or "",
-                    safeSearch="none",
-                    #units=100
-                ).execute())
-            )
+            search_response = self.youtube_manager.execute(
+                lambda service: service.search().list(
+                q=word,
+                part="id",
+                type="video",
+                order="relevance",
+                videoCaption="closedCaption",
+                maxResults=min(50, max_results - collected),
+                pageToken=token or "",
+                safeSearch="none",
+                #units=100
+            ).execute())
+
 
             logger.debug('searching response: %s', search_response)
             videos = [
@@ -102,15 +101,14 @@ class YouTubeParsing:
             if not videos:
                 break
 
-            video_response = await self.youtube_manager.execute(
-                lambda service: asyncio.to_thread(
-                    lambda s=service: s.videos().list(
-                        id=",".join(videos),
-                        part="snippet,contentDetails,status,statistics"
-                    ).execute()
-                ),
-                units=lambda response: len(response.get('items', []))
+            video_response = self.youtube_manager.execute(
+                lambda service: service.videos().list(
+                    id=",".join(videos),
+                    part="snippet,contentDetails,status,statistics"
+                ).execute(),
+            units=lambda response: len(response.get('items', []))
             )
+
             logger.debug('video response: %s', video_response)
 
             valid_videos = self.is_valid_video(video_response, seen_ids)
@@ -132,8 +130,8 @@ class YouTubeParsing:
         return rows
 
 
-    async def fetch_transcript(self, video_id: str, lang_code: str):
-        async def task(proxy_url: str):
+    def fetch_transcript(self, video_id: str, lang_code: str):
+        def task(proxy_url: str):
 
             # api = YouTubeTranscriptApi(
             #     proxy_config=GenericProxyConfig(http_url=proxy_url)
@@ -169,12 +167,12 @@ class YouTubeParsing:
                 logger.error("Transcript fetch error: %s", e)
                 return None
 
-        return await self.proxy_manager.execute(task)
+        return self.proxy_manager.execute(task)
 
-    @log_calls
-    async def get_link(self, chat_id: int, video_id: str, word: str, lang_code: str):
+    @sync_log_calls
+    def get_link(self, chat_id: int, video_id: str, word: str, lang_code: str):
 
-        links = await self.fetch_transcript(video_id, lang_code)
+        links = self.fetch_transcript(video_id, lang_code)
 
         if len(links) == 0:
             logger.error('empty links_list')
@@ -193,7 +191,7 @@ class YouTubeParsing:
                     }.get('url')
 
 
-    async def run_parsing(self,
+    def run_parsing(self,
                           word: str,
                           chat_id: int,
                           lang_code: str,
@@ -204,17 +202,29 @@ class YouTubeParsing:
         print(f'link from redis: {link}') if link else  print(f'link from redis: {None}')
 
         if link is None:
-            videos = await self.search_video(chat_id, word, seen_ids, max_results)
-            logger.info('searched video: %s', videos)
 
-            for video in videos:
-                link = await self.get_link(chat_id, video['video_id'], word, lang_code)
-                logger.info('found link: %s', link)
+            try:
+                videos = self.search_video(chat_id, word, seen_ids, max_results)
+                logger.info('searched video: %s', videos)
 
-                if link:
-                    redis_set_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link', data=link)
+                for video in videos:
+                    link = self.get_link(chat_id, video['video_id'], word, lang_code)
+                    # logger.info('found link: %s', link)
 
-                    return link
+                    if link:
+                        redis_set_hash(chat_id=chat_id, word=word, lang=lang_code,
+                                       field='youtube_link', data=link)
+                        return link
+                    else:
+                        redis_set_hash(chat_id=chat_id, word=word, lang=lang_code,
+                                       field='youtube_link', data='Video not found.')
+
+            except Exception as e:
+                link = 'Error'
+                logger.exception('failed to fetch link: %s', e)
+                redis_set_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link', data=link)
+
+                return link
         else:
             # link = link.decode('utf-8')
 
@@ -224,24 +234,49 @@ class YouTubeParsing:
 
     @send_action(6, 'upload_video')
     async def send_result(self, chat_id: int, user_state: User, db: AsyncSession, client: AsyncClient):
-        seen_videos = []
 
         word = user_state.last_word
         if not word:
             await send_message(chat_id, 'First, send the word.', user_state, client)
-            return {'details': "there aren't any words yet"}
+            return {'details': 'there are not any words yet'}
 
         lang_code = user_state.lang_code
         user_state.state = 'await_response'
         await update_bd(user_state, db)
 
         try:
-            link = await self.run_parsing(word, chat_id, lang_code, seen_videos, 10)
-            logger.debug('run parsing result: %s', link)
-            if not link:
-                await send_message(chat_id, 'Video not found.', user_state, client)
+            result = None
+            seen_videos = []
+            count = 0
+
+            while not result and count < 15:
+
+                result_from_redis = redis_get_hash(chat_id=chat_id, word=word,
+                                        lang=lang_code, field='youtube_link')
+
+                if result_from_redis == 'Video not found.' or result_from_redis == 'Video search is currently unavailable. Please try again later.':
+                    link = await asyncio.to_thread(self.run_parsing(word=word, chat_id=chat_id,
+                                                             lang_code=lang_code, seen_ids=seen_videos))
+                    if link is None:
+                        result = 'Video not found.'
+                    elif link == 'Error':
+                        result = 'Video search is currently unavailable. Please try again later.'
+                    else:
+                        result = link
+                elif result_from_redis is None:
+                    continue
+                else:
+                    result = result_from_redis
+
+                count += 1
+
+                await asyncio.sleep(1)
+
+            if count == 15:
+                await send_message(chat_id, 'The server timed out waiting for a response, please try again later.', user_state, client)
             else:
-                await send_message(chat_id, f'Videos found with this word:{link}', user_state, client)
+                await send_message(chat_id, result, user_state, client)
+
         except Exception as e:
             logger.exception('Error: %s', e)
             await send_message(chat_id, 'Video search is currently unavailable. Please try again later.', user_state, client)
@@ -249,3 +284,29 @@ class YouTubeParsing:
             user_state.state = 'ready'
 
             await update_bd(user_state, db)
+
+        # seen_videos = []
+        #
+        # word = user_state.last_word
+        # if not word:
+        #     await send_message(chat_id, 'First, send the word.', user_state, client)
+        #     return {'details': "there aren't any words yet"}
+        #
+        # lang_code = user_state.lang_code
+        # user_state.state = 'await_response'
+        # await update_bd(user_state, db)
+        #
+        # try:
+        #     link = await self.run_parsing(word, chat_id, lang_code, seen_videos, 10)
+        #     logger.debug('run parsing result: %s', link)
+        #     if not link:
+        #         await send_message(chat_id, 'Video not found.', user_state, client)
+        #     else:
+        #         await send_message(chat_id, f'Videos found with this word:{link}', user_state, client)
+        # except Exception as e:
+        #     logger.exception('Error: %s', e)
+        #     await send_message(chat_id, 'Video search is currently unavailable. Please try again later.', user_state, client)
+        # finally:
+        #     user_state.state = 'ready'
+        #
+        #     await update_bd(user_state, db)
