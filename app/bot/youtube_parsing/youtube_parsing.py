@@ -132,6 +132,7 @@ class YouTubeParsing:
 
     def fetch_transcript(self, video_id: str, lang_code: str):
         def task(proxy_url: str):
+            print('fetching transcript start')
 
             # api = YouTubeTranscriptApi(
             #     proxy_config=GenericProxyConfig(http_url=proxy_url)
@@ -154,13 +155,16 @@ class YouTubeParsing:
                 for method in ['find_generated_transcript', 'find_manually_created_transcript']:
                     try:
                         transcript = getattr(transcript_list, method)([lang_code])
+                        print(f'found transcript: {transcript}')
 
                         links.append(transcript)
 
-                    except Exception:
-                       continue
+                    except Exception as e:
+                        logger.error(f'failed to fetch transcript: {e}')
+                        continue
 
                 logger.info('found transcripts: %s', links)
+                print(f'found transcripts: {links}')
                 return links
 
             except Exception as e:
@@ -198,41 +202,46 @@ class YouTubeParsing:
                           seen_ids: list[str],
                           max_results: int = 20
                           ):
-        link = redis_get_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link')
-        print(f'link from redis: {link}') if link else  print(f'link from redis: {None}')
-
-        if link is None:
-
+        print('run_parsing start')
+        def search_link():
+            print('search link start')
             try:
                 videos = self.search_video(chat_id, word, seen_ids, max_results)
                 logger.info('searched video: %s', videos)
 
                 for video in videos:
                     link = self.get_link(chat_id, video['video_id'], word, lang_code)
-                    # logger.info('found link: %s', link)
 
                     if link:
+                        logger.info('found link: %s', link)
                         redis_set_hash(chat_id=chat_id, word=word, lang=lang_code,
                                        field='youtube_link', data=link)
                         return link
                     else:
                         redis_set_hash(chat_id=chat_id, word=word, lang=lang_code,
-                                       field='youtube_link', data='Video not found.')
+                                       field='youtube_link', data='video not found')
+                        return None
 
             except Exception as e:
-                link = 'Error'
                 logger.exception('failed to fetch link: %s', e)
-                redis_set_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link', data=link)
+                redis_set_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link', data='error')
+                return 'error'
 
-                return link
+
+        link = redis_get_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link')
+        print(f'link from redis: {link}') if link else print(f'link from redis: {None}')
+
+        if link is None:
+            link = search_link()
+            return link
+        elif link.decode('utf-8') == 'error' or link.decode('utf-8') == 'video not found':
+            link = search_link()
+            return link
         else:
-            # link = link.decode('utf-8')
-
             return link
 
-        return None
 
-    @send_action(6, 'upload_video')
+    @send_action(0, 'upload_video')
     async def send_result(self, chat_id: int, user_state: User, db: AsyncSession, client: AsyncClient):
 
         word = user_state.last_word
@@ -253,29 +262,32 @@ class YouTubeParsing:
 
                 result_from_redis = redis_get_hash(chat_id=chat_id, word=word,
                                         lang=lang_code, field='youtube_link')
+                print(f'result_from_redis: {result_from_redis}')
 
-                if result_from_redis == 'Video not found.' or result_from_redis == 'Video search is currently unavailable. Please try again later.':
-                    link = await asyncio.to_thread(self.run_parsing(word=word, chat_id=chat_id,
-                                                             lang_code=lang_code, seen_ids=seen_videos))
+                if result_from_redis.decode('utf-8') == 'video not found' or result_from_redis.decode('utf-8') == 'error':
+                    link = await asyncio.to_thread(self.run_parsing, word=word, chat_id=chat_id,
+                                                             lang_code=lang_code, seen_ids=seen_videos)
                     if link is None:
-                        result = 'Video not found.'
-                    elif link == 'Error':
-                        result = 'Video search is currently unavailable. Please try again later.'
+                        result = 'video not found.'
+                    elif link == 'error':
+                        result = 'video search is currently unavailable, please try again later'
                     else:
                         result = link
                 elif result_from_redis is None:
+                    count += 1
+                    await asyncio.sleep(1)
                     continue
                 else:
-                    result = result_from_redis
+                    result = result_from_redis.decode('utf-8')
 
                 count += 1
 
                 await asyncio.sleep(1)
 
-            if count == 15:
+            if count > 14:
                 await send_message(chat_id, 'The server timed out waiting for a response, please try again later.', user_state, client)
             else:
-                await send_message(chat_id, result, user_state, client)
+                await send_message(chat_id, f'Videos found with this word: {result}', user_state, client)
 
         except Exception as e:
             logger.exception('Error: %s', e)
@@ -284,29 +296,3 @@ class YouTubeParsing:
             user_state.state = 'ready'
 
             await update_bd(user_state, db)
-
-        # seen_videos = []
-        #
-        # word = user_state.last_word
-        # if not word:
-        #     await send_message(chat_id, 'First, send the word.', user_state, client)
-        #     return {'details': "there aren't any words yet"}
-        #
-        # lang_code = user_state.lang_code
-        # user_state.state = 'await_response'
-        # await update_bd(user_state, db)
-        #
-        # try:
-        #     link = await self.run_parsing(word, chat_id, lang_code, seen_videos, 10)
-        #     logger.debug('run parsing result: %s', link)
-        #     if not link:
-        #         await send_message(chat_id, 'Video not found.', user_state, client)
-        #     else:
-        #         await send_message(chat_id, f'Videos found with this word:{link}', user_state, client)
-        # except Exception as e:
-        #     logger.exception('Error: %s', e)
-        #     await send_message(chat_id, 'Video search is currently unavailable. Please try again later.', user_state, client)
-        # finally:
-        #     user_state.state = 'ready'
-        #
-        #     await update_bd(user_state, db)

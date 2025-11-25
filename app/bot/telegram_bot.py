@@ -152,4 +152,4 @@ class TelegramBot:
             await self.services.review_obj.continue_review(chat_id=chat_id, user_state=user_state, text=text,
                                                            client=client, reply_to_id=reply_to_id, model_param=word_param)
 
-
+        # pass

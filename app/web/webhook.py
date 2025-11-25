@@ -1,7 +1,7 @@
 import requests
 
 BOT_TOKEN = '7768022070:AAH5K-SH3noqyCQ2rk-tdW3spnRqz0wYCgo'
-WEBHOOK_URL = 'https://bb4198470bdd.ngrok-free.app/telegram/webhook'
+WEBHOOK_URL = 'https://3c900015e7df.ngrok-free.app/telegram/webhook'
 
 set_webhook_url = f'https://api.telegram.org/bot{BOT_TOKEN}/setWebhook'
 

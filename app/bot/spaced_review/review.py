@@ -98,7 +98,8 @@ class SpacedReview:
 
             await send_message(chat_id, f'Translation of a forgotten word: {word.translate}', user_state, self.client, reply_to_message_id=user_state.message_id - 1)
 
-            await self.pronunciation.send_voice(chat_id=chat_id, word=word_for_voice_msg, lang=user_state.lang_code, reply_to=user_state.message_id - 1)
+            await self.pronunciation.send_voice(chat_id=chat_id, word=word_for_voice_msg, lang=user_state.lang_code,
+                                                reply_to=user_state.message_id - 1, user_state=user_state)
 
             # await  send_inline_keyboard(chat_id=chat_id, client=client, text=text, reply_to=reply_to)
 
