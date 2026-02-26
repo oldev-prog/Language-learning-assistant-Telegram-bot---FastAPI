@@ -3,6 +3,8 @@ from enum import Enum
 from datetime import datetime
 
 class Language(str, Enum):
+    '''Scheme for validating languages received from the user.'''
+
     en = "en"
     fr = "fr"
     ja = "ja"

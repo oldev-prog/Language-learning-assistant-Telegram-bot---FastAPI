@@ -5,6 +5,8 @@ class Chat(BaseModel):
     id: int
 
 class Message(BaseModel):
+    '''Scheme for validating a message from a user.'''
+
     message_id: int
     chat: Chat
     text: str|None = None
@@ -20,11 +22,15 @@ class Message(BaseModel):
         return value
 
 class CallbackQuery(BaseModel):
+    '''Scheme for validating a callback query.'''
+
     id: str
     data: str
     message: Message
 
 class Update(BaseModel):
+    '''Universal scheme for validating an incoming request.'''
+
     update_id: int
     message: Message|None = None
     callback_query: CallbackQuery|None = None

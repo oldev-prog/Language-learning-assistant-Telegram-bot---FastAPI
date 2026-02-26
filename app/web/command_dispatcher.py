@@ -10,6 +10,8 @@ from httpx import AsyncClient
 import asyncio
 
 class CommandDispatcher:
+    '''A class that implements the processing of commands received from the user.'''
+
     def __init__(self, bot: TelegramBot, services: Services, user_crud: UserCRUD, client: AsyncClient):
         self.bot = bot
         self.review_obj = services.review_obj

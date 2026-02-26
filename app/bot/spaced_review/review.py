@@ -37,6 +37,8 @@ class SpacedReview:
 
 
     def calculate_interval(self, repetitions: int, quality: int, last_interval: int) -> int:
+        '''A function that calculates the interval for the next repetition.'''
+
         match repetitions:
             case 1:
                 return 1
@@ -54,6 +56,8 @@ class SpacedReview:
 
 
     async def update_word_states(self, quality: int, word: Word):
+        '''A function that updates the state of words in the database for further work.'''
+
         logger.debug('data before update: rep: %s, interval: %s', word.repetitions, word.interval)
         if quality < 3:
             word.repetitions = 0
@@ -72,10 +76,6 @@ class SpacedReview:
         logger.debug('review_time: %s', word.review_time)
 
 
-    # async def send_review_message(self, remove_keyboard: bool = True):
-    #     await send_message(self.chat_id, self.word.word, remove_keyboard)
-
-
     async def get_review_words(self, chat_id: int, user_state: User) -> List[Word]|None:
         words = await self.word_crud.get_words_for_review(chat_id, user_state)
         if not words:
@@ -87,6 +87,8 @@ class SpacedReview:
 
 
     async def check_word_quality(self, chat_id: int, word: Word, quality: int, user_state: User):
+        '''A function that performs the logic of sending the translation to the user and pronouncing the forgotten word during repetition.'''
+
         if quality == 0:
 
             if user_state.curr_command == '/repeating':
@@ -101,10 +103,8 @@ class SpacedReview:
             await self.pronunciation.send_voice(chat_id=chat_id, word=word_for_voice_msg, lang=user_state.lang_code,
                                                 reply_to=user_state.message_id - 1, user_state=user_state)
 
-            # await  send_inline_keyboard(chat_id=chat_id, client=client, text=text, reply_to=reply_to)
 
-
-    async def check_valid_answer(self, chat_id: int, msg: str, user_state: User, reply_to: int):
+    async def check_valid_answer(self, chat_id: int, msg: str, user_state: User, reply_to: int) -> bool:
         try:
             ReviewState(msg.lower())
         except ValueError:
@@ -116,7 +116,8 @@ class SpacedReview:
         return True
 
 
-    async def check_if_finish(self, chat_id: int, word: Word, words: list[Word], user_state: User, text: str, quality: int, reply_to_id: int, model_param: str):
+    async def check_if_finish(self, chat_id: int, word: Word, words: list[Word], user_state: User,
+                              text: str, quality: int, reply_to_id: int, model_param: str) -> bool|None:
         if user_state.review_index == len(words) - 1 or text == 'finish repeating':
             await self.finish_review(chat_id, word, user_state, quality, reply_to_id, model_param)
             return True
@@ -125,6 +126,8 @@ class SpacedReview:
     @send_action()
     @except_timeout(5)
     async def start_review(self, chat_id: int, user_state: User, text: str, client: AsyncClient, model_param: str):
+        '''A function that starts a repetition and changes the user's state on await_raiting.'''
+
         if user_state.curr_command == '/repeating':
             words = await self.word_crud.get_words_for_review(chat_id, user_state)
         else:
@@ -138,14 +141,15 @@ class SpacedReview:
 
         await send_message(chat_id=chat_id, user_state=user_state, text="Let's start repeating, evaluate how well you remember this word.", client=self.client)
 
-        word = getattr(words[user_state.review_index], model_param)
-
         await send_keyboard(chat_id, review_bottoms, client, False, words[user_state.review_index].word)
 
 
     @send_action()
     @except_timeout(5)
-    async def continue_review(self, chat_id: int, user_state: User, text: str, client: AsyncClient, reply_to_id: int, model_param: str):
+    async def continue_review(self, chat_id: int, user_state: User, text: str,
+                              client: AsyncClient, reply_to_id: int, model_param: str):
+        '''A function that starts the continuation of repetition until completion.'''
+
         words = review_states[chat_id]
 
         if user_state.review_index == len(words):
@@ -167,18 +171,13 @@ class SpacedReview:
 
         await self.update_word_states(quality, word)
 
-        # await update_bd(word, self.db)
-
         user_state.review_index += 1
 
         next_word = words[user_state.review_index]
         logger.debug('next word: %s', next_word)
 
-        word = getattr(next_word, model_param)
-
         user_state.message_id = await send_message(text=next_word.word, chat_id=chat_id, user_state=user_state, client=client)
 
-        # await send_keyboard(chat_id, review_bottoms, client, True, words[user_state.review_index].word)
 
     async def finish_review(self, chat_id: int, word: Word, user_state: User, quality: int, reply_to_id: int, model_param: str):
         await self.check_word_quality(chat_id, word, quality, user_state)

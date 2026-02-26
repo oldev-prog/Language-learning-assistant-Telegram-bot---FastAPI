@@ -3,7 +3,7 @@ from app.decorators import except_timeout
 from httpx import AsyncClient
 from app.telegram_utils.bottoms import explain_bottoms
 
-# @except_timeout(3)
+
 async def send_keyboard(chat_id: int, bottoms, client: AsyncClient, close_or_no : bool = False, text : str = None):
     keyboard = {
             'keyboard': bottoms,

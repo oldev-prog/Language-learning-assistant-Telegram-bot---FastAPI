@@ -1,12 +1,11 @@
 import os
-os.environ.pop('HTTP_PROXY', None)
-os.environ.pop('http_proxy', None)
-os.environ.pop('HTTPS_PROXY', None)
-os.environ.pop('https_proxy', None)
 import requests
+from dotenv import load_dotenv
+from app.web.webhook import WEBHOOK_URL
 
-BOT_TOKEN = '7768022070:AAH5K-SH3noqyCQ2rk-tdW3spnRqz0wYCgo'
-WEBHOOK_URL = ('https://543c52558d9f.ngrok-free.app/webhook')
+load_dotenv()
+
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 set_webhook_url = f'https://api.telegram.org/bot{BOT_TOKEN}/setWebhook'
 response = requests.post(set_webhook_url, data={'url': WEBHOOK_URL})

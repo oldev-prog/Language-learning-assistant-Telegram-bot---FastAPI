@@ -10,13 +10,14 @@ logger = logging.getLogger(__name__)
 
 
 class UserCRUD:
+    '''A class that implements interaction with the database, namely, writing and reading data associated with users.'''
+
     def __init__(self, db: AsyncSession):
         self.db = db
 
     @log_calls
     async def get_user(self, chat_id: int):
         try:
-            # query = select(User).where(User.chat_id == chat_id)
             res = await self.db.execute(statement=select(User).where(User.chat_id == chat_id))
         except Exception:
             logger.exception('failed to get user from database')
@@ -67,11 +68,6 @@ class UserCRUD:
 
         return new_user
 
-        # return JSONResponse(
-        #     {
-        #         'details': 'user has been successfully added'
-        #     }
-        # )
 
     @log_calls
     async def get_all_words(self, chat_id: int):

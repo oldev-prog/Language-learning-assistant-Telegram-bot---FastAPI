@@ -28,7 +28,7 @@ class SingletonMeta(type):
 
 
 class Services:
-    """Dependencies for TelegramBot"""
+    '''Dependencies for TelegramBot'''
 
     def __init__(self, db: AsyncSession, client: AsyncClient):
         self.db = db
@@ -45,7 +45,7 @@ class Services:
 
 
 class TelegramBot:
-    """General object coordinates the work of services"""
+    '''General object coordinates the work of services'''
 
     def __init__(self,services: Services) -> None:
         self.services = services
@@ -75,7 +75,6 @@ class TelegramBot:
 
 
     async def send_pronunciation(self, chat_id: int, user_state: User, reply_to_id: int):
-        # tts = await self.services.pronunciation_obj.generate_tts(user_state.last_word, user_state.lang_code, chat_id)
 
         await self.services.pronunciation_obj.send_voice(chat_id=chat_id, word=user_state.last_word,
                                                          lang=user_state.lang_code, reply_to=reply_to_id,
@@ -126,7 +125,6 @@ class TelegramBot:
     @send_action(1, 'upload_document')
     async def send_words_list(self, chat_id: int, user_state: User):
         words = await self.services.word_crud.get_words_for_pdf(chat_id=chat_id, user_states=user_state)
-        print(f'words: {words}')
 
         if not words:
             await self.send_message(chat_id=chat_id, text='Your list is empty.', user_state=user_state)
@@ -151,5 +149,3 @@ class TelegramBot:
         else:
             await self.services.review_obj.continue_review(chat_id=chat_id, user_state=user_state, text=text,
                                                            client=client, reply_to_id=reply_to_id, model_param=word_param)
-
-        # pass

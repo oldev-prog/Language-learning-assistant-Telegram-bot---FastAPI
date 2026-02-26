@@ -22,7 +22,6 @@ session_factory = sessionmaker(sync_engine, expire_on_commit=False)
 
 async_session_factory = async_sessionmaker(async_engine, expire_on_commit=False)
 
-
 async def db_setup():
     async with sync_engine.connect() as session:
         await session.run_sync(Base.metadata.create_all(sync_engine))

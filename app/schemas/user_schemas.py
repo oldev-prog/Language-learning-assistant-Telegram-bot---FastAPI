@@ -5,6 +5,8 @@ from typing import List
 
 
 class States(Enum):
+    '''Scheme for validating states of the user.'''
+
     await_native_lang = 'await_native_lang'
     await_lang = 'await_lang'
     ready = 'ready'

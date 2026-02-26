@@ -8,7 +8,7 @@ from app.config import answer_callback_url
 
 logger = logging.getLogger(__name__)
 
-#@except_timeout(3)
+
 async def send_message(chat_id: int, text: str, user_state: User, client: httpx.AsyncClient,
                        remove_keyboard: bool = False, reply_to_message_id: int = None):
     try:

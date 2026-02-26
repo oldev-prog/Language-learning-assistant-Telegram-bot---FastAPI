@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class StartFuncs:
+    '''The class is required to process messages from the user when starting the bot and selecting a language.'''
 
     @classmethod
     @send_action()
@@ -35,7 +36,6 @@ class StartFuncs:
     @send_action()
     async def choice_learning_lang(cls, user_state: User, chat_id: int, text: str, db: AsyncSession, client: AsyncClient):
 
-        print(f'state: {user_state}')
         logger.debug('text: %s', text)
         if user_state.state == 'await_native_lang':
 
@@ -61,7 +61,7 @@ class StartFuncs:
                 user_state.state = 'ready'
                 await update_bd(user_state, db)
 
-                print(f'states before send msg: {user_state}')
+                logger.debug('states before send msg: %s ', user_state)
                 await send_message(chat_id=chat_id, text=f'Selected language: {text}. The bot is ready to work, you can send words.',
                                    user_state=user_state, client=client, remove_keyboard=True)
 

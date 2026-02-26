@@ -19,6 +19,8 @@ from app.data.cache.redis_crud import *
 logger = logging.getLogger(__name__)
 
 class YouTubeParsing:
+    '''This class implements YouTube video parsing.'''
+
     def __init__(self):
         self.youtube_manager = KeyManager(youtube_keys, youtube_factory)
         self.proxy_manager = ProxyManager(proxies)
@@ -26,6 +28,7 @@ class YouTubeParsing:
 
     @staticmethod
     def is_valid_video(video_snippet: dict, seen_ids: list[str]) -> list|None:
+        '''A function that checks whether a video meets specific parameters.'''
 
         rows = []
 
@@ -67,6 +70,7 @@ class YouTubeParsing:
             seen_ids: list[str],
             max_results: int = 20
             ) -> list[dict]:
+        '''A function that accesses the YouTube API and retrieves videos based on specific parameters.'''
 
         collected = 0
         rows = []
@@ -86,7 +90,6 @@ class YouTubeParsing:
                 maxResults=min(50, max_results - collected),
                 pageToken=token or "",
                 safeSearch="none",
-                #units=100
             ).execute())
 
 
@@ -125,14 +128,14 @@ class YouTubeParsing:
                 break
 
             logger.info('final result for videos: %s', rows)
-            print(f'final result for videos: {rows}')
 
         return rows
 
 
-    def fetch_transcript(self, video_id: str, lang_code: str):
+    def fetch_transcript(self, video_id: str, lang_code: str) -> dict:
+        '''Function that extracts subtitles from each video.'''
+
         def task(proxy_url: str):
-            print('fetching transcript start')
 
             # api = YouTubeTranscriptApi(
             #     proxy_config=GenericProxyConfig(http_url=proxy_url)
@@ -155,7 +158,7 @@ class YouTubeParsing:
                 for method in ['find_generated_transcript', 'find_manually_created_transcript']:
                     try:
                         transcript = getattr(transcript_list, method)([lang_code])
-                        print(f'found transcript: {transcript}')
+                        logger.debug(f'found transcript: {transcript}')
 
                         links.append(transcript)
 
@@ -164,7 +167,6 @@ class YouTubeParsing:
                         continue
 
                 logger.info('found transcripts: %s', links)
-                print(f'found transcripts: {links}')
                 return links
 
             except Exception as e:
@@ -174,7 +176,8 @@ class YouTubeParsing:
         return self.proxy_manager.execute(task)
 
     @sync_log_calls
-    def get_link(self, chat_id: int, video_id: str, word: str, lang_code: str):
+    def get_link(self, chat_id: int, video_id: str, word: str, lang_code: str) -> str|None:
+        '''A series function that implements results in a link.'''
 
         links = self.fetch_transcript(video_id, lang_code)
 
@@ -202,10 +205,10 @@ class YouTubeParsing:
                           seen_ids: list[str],
                           max_results: int = 20
                           ):
-        print('run_parsing start')
         def search_link():
-            print('search link start')
+
             try:
+                link = None
                 videos = self.search_video(chat_id, word, seen_ids, max_results)
                 logger.info('searched video: %s', videos)
 
@@ -217,10 +220,10 @@ class YouTubeParsing:
                         redis_set_hash(chat_id=chat_id, word=word, lang=lang_code,
                                        field='youtube_link', data=link)
                         return link
-                    else:
-                        redis_set_hash(chat_id=chat_id, word=word, lang=lang_code,
-                                       field='youtube_link', data='video not found')
-                        return None
+
+                redis_set_hash(chat_id=chat_id, word=word, lang=lang_code,
+                               field='youtube_link', data='video not found')
+                return link
 
             except Exception as e:
                 logger.exception('failed to fetch link: %s', e)
@@ -229,7 +232,7 @@ class YouTubeParsing:
 
 
         link = redis_get_hash(chat_id=chat_id, word=word, lang=lang_code, field='youtube_link')
-        print(f'link from redis: {link}') if link else print(f'link from redis: {None}')
+        logger.info('link from redis: %s', link) if link else logger.info('link from redis: None')
 
         if link is None:
             link = search_link()
@@ -262,7 +265,7 @@ class YouTubeParsing:
 
                 result_from_redis = redis_get_hash(chat_id=chat_id, word=word,
                                         lang=lang_code, field='youtube_link')
-                print(f'result_from_redis: {result_from_redis}')
+                logger.info('result_from_redis: %s', result_from_redis)
 
                 if result_from_redis.decode('utf-8') == 'video not found' or result_from_redis.decode('utf-8') == 'error':
                     link = await asyncio.to_thread(self.run_parsing, word=word, chat_id=chat_id,

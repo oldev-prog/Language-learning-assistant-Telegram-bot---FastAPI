@@ -18,6 +18,9 @@ class Key:
         self.active = True
 
 class KeyManager:
+    '''This class is designed to work with YouTube API keys.
+    It deactivates inactive keys and activates the next one in the list when the corresponding exception is thrown.'''
+
     def __init__(self, keys: list[str], service_factory: Callable[[str], Any]):
         self.keys = [Key(key, service_factory) for key in keys if key]
         self.index = 0
@@ -50,7 +53,7 @@ class KeyManager:
         api.used_units += units
         logger.info('key %s, unit: %f, used_units: %f', api.key, units, api.used_units)
 
-    def calculate_delay(self, attempt: int, backoff_max: int, api: Key):
+    def calculate_delay(self, attempt: int, backoff_max: int, api: Key) -> int:
         if attempt < backoff_max:
             delay = 2 ** attempt
             logger.info('⏳ rate limit, retry in %s seconds', delay)
@@ -65,7 +68,7 @@ class KeyManager:
             fn: Callable[[Any], Any | Awaitable[Any]],
             units: int | Callable[[Any], int] = 0,
             backoff_max: int = 3
-    ):
+    ) -> Any:
         attempt = 0
 
         while True:
@@ -110,6 +113,8 @@ class KeyManager:
 
 
 class ProxyManager:
+    '''This class is designed to work with Proxies.
+    It deactivates inactive proxies and activates the next one in the list when the corresponding exception is thrown.'''
     def __init__(self, proxies: list[str]):
         self.proxies = proxies
         self.active = [True]*len(proxies)
@@ -131,7 +136,7 @@ class ProxyManager:
 
         return None
 
-    def execute(self, fn: Callable[[str], Awaitable[Any]]):
+    def execute(self, fn: Callable[[str], Awaitable[Any]]) -> Any:
         while True:
             proxy = self.get_proxy()
             print(f'proxy {proxy}')

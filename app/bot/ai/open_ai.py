@@ -20,6 +20,7 @@ load_dotenv()
 
 
 class AIClient:
+    '''The general class takes into account interaction with AI through an external API'''
 
     def __init__(self,
                  client: AsyncClient,
@@ -43,7 +44,8 @@ class AIClient:
         return f"<{self.__class__.__name__} {', '.join(cols)}>"
 
 
-    def get_prompt(self, word: str, user_state: User):
+    def get_prompt(self, word: str, user_state: User) -> str:
+        '''The function that is responsible for adding the necessary data to prompt.'''
         prompt = prompt_template.format(
             word=word,
             learning_lang=user_state.lang_code,
@@ -65,9 +67,11 @@ class AIClient:
         return s
 
     def format_word_explanation(self, data: dict) -> str:
+        '''A function representing data from the AI response to the user.'''
+
         if isinstance(data, str):
             data = json.loads(data)
-        print(f'data for word explanation: {data}, {type(data)}')
+
         return (
             f"=== Translation ===\n"
             f"{data['translation']}\n\n"
@@ -82,7 +86,8 @@ class AIClient:
         )
 
     @log_calls
-    async def request(self, word: str, user_state: User):
+    async def request(self, word: str, user_state: User) -> dict:
+        '''Functions that send a request to AI.'''
         try:
             prompt = self.get_prompt(word, user_state)
             logger.debug(f'requesting "{prompt}"')
@@ -123,12 +128,12 @@ class AIClient:
 
     @except_timeout(6)
     @log_calls
-    async def get_explanation(self, word: str, user_state: User, db: AsyncSession):
+    async def get_explanation(self, word: str, user_state: User, db: AsyncSession) -> tuple[str, str]|str:
+        '''A function that converts a response from AI into a final message to the user.'''
 
         try:
             unswear = redis_get_hash(chat_id=user_state.chat_id, word=word, lang=user_state.lang_code, field='explanation')
             logger.debug(f'redis:{unswear}') if unswear else logger.debug(f'redis: {None}')
-            print(f'redis:{unswear}') if unswear else print(f'redis: {None}')
 
             if unswear is None:
                 unswear = await self.request(word, user_state)
@@ -156,7 +161,9 @@ class AIClient:
             return 'Error sending, please try again.'
 
 
-    async def update_user_state(self, data: dict, word: str, user_state: User, db: AsyncSession):
+    async def update_user_state(self, data: dict, word: str, user_state: User, db: AsyncSession) -> str|None:
+        '''A function that updates the user's status in the database for further bot operation.'''
+
         if isinstance(data, str):
             data = json.loads(data)
 

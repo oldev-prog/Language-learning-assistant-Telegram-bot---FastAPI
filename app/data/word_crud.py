@@ -11,6 +11,8 @@ from httpx import AsyncClient
 logger = logging.getLogger(__name__)
 
 class WordsCRUD:
+    '''A class implementing records for reading data from a database associated with user's words.'''
+
     def __init__(self, db: AsyncSession):
         self.db = db
 

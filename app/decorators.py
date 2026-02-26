@@ -12,7 +12,8 @@ if TYPE_CHECKING:
     from app.data.user_crud import UserCRUD
 
 def log_calls(func):
-    # configure_logger(logging.DEBUG)
+    '''Async decorator signaling the start of a function and its completion.'''
+
     logger = logging.getLogger(func.__module__)
 
     @functools.wraps(func)
@@ -28,6 +29,8 @@ def log_calls(func):
     return wrapper
 
 def sync_log_calls(func):
+    '''Sync decorator signaling the start of a function and its completion.'''
+
     logger = logging.getLogger(func.__module__)
 
     @functools.wraps(func)
@@ -43,6 +46,8 @@ def sync_log_calls(func):
     return wrapper
 
 def except_timeout(timeout: float):
+    '''A decorator that prevents a request from executing longer than a certain amount of time.'''
+
     def decorator(func):
         async def wrapper(self, *args, **kwargs):
 
@@ -74,6 +79,8 @@ def except_timeout(timeout: float):
 
 
 def send_action(seconds: float=0, action: str='typing'):
+    '''A decorator that sends a specific action animation to the user during the execution of functions.'''
+
     def decorator(func):
         async def wrapper(self, *args, **kwargs):
             logger.debug('args: %s, kwargs: %s', args, kwargs)

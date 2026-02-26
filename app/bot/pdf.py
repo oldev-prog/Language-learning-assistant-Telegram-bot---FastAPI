@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 pdfmetrics.registerFont(TTFont('NotoSans', '/Users/oleg/Downloads/Noto_Sans,Noto_Sans_JP/Noto_Sans_JP/static/NotoSansJP-Regular.ttf'))
 
 class PDF:
+    '''This class implements the generation of PDF files with a list of words.'''
+
     def __init__(self,
                  client: AsyncClient,
                  send_msg_func: Callable,

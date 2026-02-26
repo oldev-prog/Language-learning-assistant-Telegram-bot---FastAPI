@@ -1,6 +1,8 @@
 from enum import Enum
 
 class ReviewState(str, Enum):
+    '''A scheme for validating user responses during word repetition.'''
+
     forgot = 'forgot'
     hard = 'hard'
     easy = 'easy'
@@ -8,6 +10,8 @@ class ReviewState(str, Enum):
 
 
 class Commands(str, Enum):
+    '''Scheme for validating commands received from the user.'''
+
     start = '/start'
     change_native_lang = '/change_native_lang'
     change_learning_lang = '/change_learning_lang'

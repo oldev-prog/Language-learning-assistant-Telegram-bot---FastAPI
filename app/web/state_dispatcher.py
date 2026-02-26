@@ -10,6 +10,8 @@ import asyncio
 from app.celery.tasks import tts_task, youtube_parsing_task
 
 class StateDispatcher:
+    '''A class that implements user states processing.'''
+
     def __init__(self, bot: TelegramBot, db: AsyncSession):
         self.bot = bot
         self.states = {

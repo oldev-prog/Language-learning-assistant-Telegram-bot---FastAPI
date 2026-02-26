@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 GOOGLE_TTS_URL = 'https://translate.google.com/translate_tts'
 
 class Pronunciation:
+    '''This class implements the generation of bytes for an audio file and
+    sending a voice message with pronunciation to the user.'''
+
     def __init__(self, client: AsyncClient) -> None:
         self.send_voice_url = send_voice_url
         self.client = client
@@ -23,6 +26,8 @@ class Pronunciation:
 
     @sync_log_calls
     def generate_tts(self, word: str, lang: str, chat_id: int):
+        '''This function generates bytes and writes them to a file.'''
+
         logger.debug(f'language: {lang}')
         tts_bytes = redis_get_hash(chat_id=chat_id, word=word, lang=lang, field='pronunciation')
 
@@ -43,13 +48,11 @@ class Pronunciation:
                 logger.error(f'failed to synthesize: {e}')
                 tts_bytes = 'Error'
 
-            print(f'data for redis: {tts_bytes}')
             redis_set_hash(chat_id=chat_id, word=word, lang=lang, field='pronunciation', data=tts_bytes)
 
         return tts_bytes
 
     def synthesize(self, tmp_path, word: str, lang: str) -> None:
-        """Blocking TTS call, run in executor"""
         tts = gTTS(text=word, lang=lang)
         with open(tmp_path, "wb") as f:
             tts.write_to_fp(f)
@@ -65,17 +68,16 @@ class Pronunciation:
         while not tts_data and count < 15:
             tts_data_from_redis = redis_get_hash(chat_id=chat_id, word=word, lang=lang, field='pronunciation')
             logger.info(f'tts_data_from_redis: {tts_data_from_redis}') if tts_data_from_redis else None
-            print(f'tts_data_from_redis: {tts_data_from_redis}') if tts_data_from_redis else None
-            if tts_data_from_redis == 'Error' or tts_data_from_redis is None:
+            if tts_data_from_redis == 'Error':
                 result = await asyncio.to_thread(self.generate_tts, word=word, lang=lang, chat_id=chat_id)
                 if result == 'Error':
                     await send_message(chat_id=chat_id, text='Failed to generate voice message. Please try again later.',
                                        user_state=user_state, client=self.client)
                     return {'detail': 'failed to generate voice message'}
-            # elif tts_data_from_redis is None:
-            #     await asyncio.sleep(0.2)
-            #     count += 1
-            #     continue
+            elif tts_data_from_redis is None:
+                await asyncio.sleep(0.2)
+                count += 1
+                continue
             else:
                 tts_data = tts_data_from_redis
 
