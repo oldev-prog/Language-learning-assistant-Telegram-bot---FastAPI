@@ -1,0 +1,220 @@
+on:
+  push:
+    - workflows: deploy-tg-bot-workflow
+      filter:
+        branches: ["main"]
+  pull_request:
+    - workflows: deploy-tg-bot-workflow
+      filter:
+        source_branches: ["**", "!test**"]
+        target_branches: "main"
+
+tokens:
+  SERVICE_CONNECTION_WITH_TOKEN:
+    service_connection: "service-connection-1"
+    scope: org
+
+workflows:
+  deploy-tg-bot-workflow:
+    inputs:
+      bot-username:
+        type: string
+        required: false
+        default: "langtranslatebot"
+        description: Your Telegram bot username without _bot from BotFather. Name must match the pattern /|[a-z][-a-z0-9]{1,61}[a-z0-9]/
+      bot-token:
+        type: string
+        required: false
+        default: ""
+        description: Your Telegram bot token from BotFather
+      openai-key:
+        type: string
+        required: false
+        default: ""
+        description: API key from aitunnel.ru for AI requests
+      db-host:
+        type: string
+        required: false
+        default: ""
+        description: PostgreSQL host reachable from Yandex Cloud Function
+      db-port:
+        type: string
+        default: "5432"
+        description: PostgreSQL port
+      db-user:
+        type: string
+        required: false
+        default: ""
+        description: PostgreSQL user
+      db-pass:
+        type: string
+        required: false
+        default: ""
+        description: PostgreSQL password
+      db-name:
+        type: string
+        required: false
+        default: ""
+        description: PostgreSQL database name
+      db-sslmode:
+        type: string
+        default: "require"
+        description: SSL mode for DB connection (require/prefer)
+      redis-host:
+        type: string
+        required: false
+        default: ""
+        description: Redis host for cache
+      redis-port:
+        type: string
+        default: "6379"
+        description: Redis port
+      redis-db:
+        type: string
+        default: "0"
+        description: Redis DB index
+      celery-broker-url:
+        type: string
+        required: false
+        default: ""
+        description: Celery broker URL (RabbitMQ)
+      celery-result-backend:
+        type: string
+        required: false
+        default: ""
+        description: Celery result backend URL
+    env:
+      YC_BOT_NAME: ${{ inputs.bot-username }}
+      TG_BOT_TOKEN: ${{ inputs.bot-token }}
+    tasks:
+      - name: deploy-tg-backend-task
+        cubes:
+          - name: format-name
+            script:
+              - |
+                func_name=$(echo "$YC_BOT_NAME" | tr '[:upper:]' '[:lower:]' | tr -d '_')
+                echo "function_name=$func_name" >> $SOURCECRAFT_OUTPUT
+
+          - name: resolve-config
+            env:
+              BOT_TOKEN_SECRET: ${{ secrets.BOT_TOKEN }}
+              OPENAI_KEY_SECRET: ${{ secrets.OPENAI_KEY }}
+              DB_HOST_SECRET: ${{ secrets.DB_HOST }}
+              DB_PORT_SECRET: ${{ secrets.DB_PORT }}
+              DB_USER_SECRET: ${{ secrets.DB_USER }}
+              DB_PASS_SECRET: ${{ secrets.DB_PASS }}
+              DB_NAME_SECRET: ${{ secrets.DB_NAME }}
+              DB_SSLMODE_SECRET: ${{ secrets.DB_SSLMODE }}
+              REDIS_HOST_SECRET: ${{ secrets.REDIS_HOST }}
+              REDIS_PORT_SECRET: ${{ secrets.REDIS_PORT }}
+              REDIS_DB_SECRET: ${{ secrets.REDIS_DB }}
+              CELERY_BROKER_URL_SECRET: ${{ secrets.CELERY_BROKER_URL }}
+              CELERY_RESULT_BACKEND_SECRET: ${{ secrets.CELERY_RESULT_BACKEND }}
+              BOT_TOKEN_INPUT: ${{ inputs.bot-token }}
+              OPENAI_KEY_INPUT: ${{ inputs.openai-key }}
+              DB_HOST_INPUT: ${{ inputs.db-host }}
+              DB_PORT_INPUT: ${{ inputs.db-port }}
+              DB_USER_INPUT: ${{ inputs.db-user }}
+              DB_PASS_INPUT: ${{ inputs.db-pass }}
+              DB_NAME_INPUT: ${{ inputs.db-name }}
+              DB_SSLMODE_INPUT: ${{ inputs.db-sslmode }}
+              REDIS_HOST_INPUT: ${{ inputs.redis-host }}
+              REDIS_PORT_INPUT: ${{ inputs.redis-port }}
+              REDIS_DB_INPUT: ${{ inputs.redis-db }}
+              CELERY_BROKER_URL_INPUT: ${{ inputs.celery-broker-url }}
+              CELERY_RESULT_BACKEND_INPUT: ${{ inputs.celery-result-backend }}
+            script:
+              - |
+                pick_value() {
+                  local secret_val="$1"
+                  local input_val="$2"
+                  if [ -n "$secret_val" ]; then
+                    echo "$secret_val"
+                  else
+                    echo "$input_val"
+                  fi
+                }
+
+                check_required() {
+                  local key="$1"
+                  local value="$2"
+                  if [ -z "$value" ] || [[ "$value" == YOUR_* ]]; then
+                    echo "Error: invalid value '$key'. Configure SourceCraft secret or pass input."
+                    exit 1
+                  fi
+                }
+
+                BOT_TOKEN="$(pick_value "$BOT_TOKEN_SECRET" "$BOT_TOKEN_INPUT")"
+                OPENAI_KEY="$(pick_value "$OPENAI_KEY_SECRET" "$OPENAI_KEY_INPUT")"
+                DB_HOST="$(pick_value "$DB_HOST_SECRET" "$DB_HOST_INPUT")"
+                DB_PORT="$(pick_value "$DB_PORT_SECRET" "$DB_PORT_INPUT")"
+                DB_USER="$(pick_value "$DB_USER_SECRET" "$DB_USER_INPUT")"
+                DB_PASS="$(pick_value "$DB_PASS_SECRET" "$DB_PASS_INPUT")"
+                DB_NAME="$(pick_value "$DB_NAME_SECRET" "$DB_NAME_INPUT")"
+                DB_SSLMODE="$(pick_value "$DB_SSLMODE_SECRET" "$DB_SSLMODE_INPUT")"
+                REDIS_HOST="$(pick_value "$REDIS_HOST_SECRET" "$REDIS_HOST_INPUT")"
+                REDIS_PORT="$(pick_value "$REDIS_PORT_SECRET" "$REDIS_PORT_INPUT")"
+                REDIS_DB="$(pick_value "$REDIS_DB_SECRET" "$REDIS_DB_INPUT")"
+                CELERY_BROKER_URL="$(pick_value "$CELERY_BROKER_URL_SECRET" "$CELERY_BROKER_URL_INPUT")"
+                CELERY_RESULT_BACKEND="$(pick_value "$CELERY_RESULT_BACKEND_SECRET" "$CELERY_RESULT_BACKEND_INPUT")"
+
+                check_required "BOT_TOKEN" "$BOT_TOKEN"
+                check_required "OPENAI_KEY" "$OPENAI_KEY"
+                check_required "DB_HOST" "$DB_HOST"
+                check_required "DB_PORT" "$DB_PORT"
+                check_required "DB_USER" "$DB_USER"
+                check_required "DB_PASS" "$DB_PASS"
+                check_required "DB_NAME" "$DB_NAME"
+                check_required "DB_SSLMODE" "$DB_SSLMODE"
+                check_required "REDIS_HOST" "$REDIS_HOST"
+                check_required "REDIS_PORT" "$REDIS_PORT"
+                check_required "REDIS_DB" "$REDIS_DB"
+                check_required "CELERY_BROKER_URL" "$CELERY_BROKER_URL"
+                check_required "CELERY_RESULT_BACKEND" "$CELERY_RESULT_BACKEND"
+
+                ENVIRONMENT_STRING="BOT_TOKEN=$BOT_TOKEN,OPENAI_KEY=$OPENAI_KEY,DB_HOST=$DB_HOST,DB_PORT=$DB_PORT,DB_USER=$DB_USER,DB_PASS=$DB_PASS,DB_NAME=$DB_NAME,DB_SSLMODE=$DB_SSLMODE,REDIS_HOST=$REDIS_HOST,REDIS_PORT=$REDIS_PORT,REDIS_DB=$REDIS_DB,CELERY_BROKER_URL=$CELERY_BROKER_URL,CELERY_RESULT_BACKEND=$CELERY_RESULT_BACKEND"
+                echo "resolved_environment=$ENVIRONMENT_STRING" >> $SOURCECRAFT_OUTPUT
+                echo "resolved_bot_token=$BOT_TOKEN" >> $SOURCECRAFT_OUTPUT
+
+          - name: deploy-func
+            env:
+              ID_TOKEN: ${{ tokens.SERVICE_CONNECTION_WITH_TOKEN.id_token }}
+              YC_SA_ID: ${{ tokens.SERVICE_CONNECTION_WITH_TOKEN.service_account_id }}
+              YC_FOLDER_ID: ${{ tokens.SERVICE_CONNECTION_WITH_TOKEN.folder_id }}
+              YC_FUNCTION_NAME: ${{ cubes.format-name.outputs.function_name }}
+              YC_FUNCTION_RUNTIME: python312
+              YC_FUNCTION_MEMORY: 256m
+              YC_FUNCTION_EXECUTION_TIMEOUT: 20s
+              YC_FUNCTION_TIMEOUT: 20s
+              YC_FUNCTION_ENTRYPOINT: main.handler
+              SOURCE_PATH: "."
+              ENVIRONMENT: ${{ cubes.resolve-config.outputs.resolved_environment }}
+              PUBLIC: true
+            image: cr.yandex/sourcecraft/yc-function:latest
+
+          - name: register-with-botfather
+            env:
+              TG_BOT_TOKEN: ${{ cubes.resolve-config.outputs.resolved_bot_token }}
+            script:
+              - |
+                # Check if TG_BOT_TOKEN is set and not equal to placeholder
+                if [ -n "$TG_BOT_TOKEN" ] && [ "$TG_BOT_TOKEN" != "YOUR_TG_BOT_TOKEN" ]; then
+                    echo "TG_BOT_TOKEN is properly set"
+                    echo "Setting webhook..."
+                    curl --request POST --url https://api.telegram.org/bot$TG_BOT_TOKEN/setWebhook?url=${{cubes.deploy-func.outputs.invoke_url}}
+                    echo "Webhook set!"
+                else
+                    echo "TG_BOT_TOKEN is either not set or equals placeholder value"
+                fi
+
+          - name: get-outputs
+            script:
+              - |
+                echo "invoke_url=${{ cubes.deploy-func.outputs.invoke_url }}"
+                echo "deployment_location=${{ cubes.deploy-func.outputs.deployment_location }}"
+                echo "invoke_url=${{ cubes.deploy-func.outputs.invoke_url }}" > invoke_url.txt
+                echo "deployment_location=${{ cubes.deploy-func.outputs.deployment_location }}" > deployment_location.txt
+            artifacts:
+              paths:
+                - invoke_url.txt
+                - deployment_location.txt
