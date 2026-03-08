@@ -3,8 +3,6 @@ from reportlab.platypus import Table
 import httpx
 import logging
 
-from drafts.conftest import mock_httpx_client
-
 logger = logging.getLogger(__name__)
 
 @pytest.mark.asyncio

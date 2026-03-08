@@ -1,6 +1,11 @@
 from app.schemas.request_schemas import Update
-from app.web.services_routers import *
-from app.main import *
+from fastapi import APIRouter, status
+from fastapi.responses import JSONResponse
+from app.bot.telegram_bot import TelegramBot, Services
+from app.data.user_crud import UserCRUD
+from app.dependencies import session_dep, httpx_client_dep
+from app.web.command_dispatcher import CommandDispatcher
+from app.web.state_dispatcher import StateDispatcher
 from app.telegram_utils.utils import answer_callback
 from app.telegram_utils.utils import update_state_to_await, update_bd
 import asyncio
@@ -10,7 +15,15 @@ webhook_router = APIRouter(prefix='/telegram', tags=["Webhook"])
 @webhook_router.post('/webhook', status_code=status.HTTP_200_OK)
 async def telegram_webhook(
         request: Update,
+        db: session_dep,
+        client: httpx_client_dep,
 ):
+    user_crud = UserCRUD(db)
+    services = Services(db, client)
+    bot = TelegramBot(services)
+    command_dispatcher = CommandDispatcher(bot, services, user_crud, client)
+    state_dispatcher = StateDispatcher(bot, db)
+
     message = request.message
     callback = request.callback_query
     print(f'callback: {callback}')

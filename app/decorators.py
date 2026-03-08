@@ -2,6 +2,7 @@ import logging
 import functools
 import time
 import asyncio
+import inspect
 from app.config import BOT_TOKEN, send_action_url
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,26 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from app.telegram_utils.utils import send_message, update_bd
     from app.data.user_crud import UserCRUD
+
+
+def _resolve_http_client(target_obj, kwargs):
+    client = kwargs.get('client')
+    if client is not None:
+        return client
+
+    services = getattr(target_obj, 'services', None)
+    if services is not None:
+        return getattr(services, 'client', None)
+
+    return None
+
+
+def _resolve_arg(func, args, kwargs, name):
+    try:
+        bound = inspect.signature(func).bind_partial(*args, **kwargs)
+        return bound.arguments.get(name)
+    except Exception:
+        return kwargs.get(name)
 
 def log_calls(func):
     '''Async decorator signaling the start of a function and its completion.'''
@@ -52,22 +73,29 @@ def except_timeout(timeout: float):
         async def wrapper(self, *args, **kwargs):
 
             logger.debug('args: %s, kwargs: %s', args, kwargs)
-            chat_id = kwargs.get('chat_id')
-            user_state = kwargs.get('user_state')
+            chat_id = _resolve_arg(func, (self, *args), kwargs, 'chat_id')
+            user_state = _resolve_arg(func, (self, *args), kwargs, 'user_state')
 
             logger.debug('user_state is %s', user_state)
 
             try:
-                from app.main import client
                 server_response = await asyncio.wait_for(func(self, *args, **kwargs), timeout)
                 #return server_response
             except asyncio.TimeoutError as e:
                 from app.telegram_utils.utils import send_message
                 from app.data.user_crud import UserCRUD
+                client = _resolve_http_client(self, kwargs)
+
+                if client is None:
+                    logger.error('http client is not available in timeout handler for %s', func.__name__)
+                    raise RuntimeError('http client is required in timeout handler')
 
                 await send_message(chat_id=chat_id, text='The server timed out waiting for a response, please try again later.', client=client, user_state=user_state)
-                user_state.state = 'ready'
-                await UserCRUD.update_bd(user_state, self.services.db)
+                if user_state is not None:
+                    user_state.state = 'ready'
+                    db = getattr(getattr(self, 'services', None), 'db', None)
+                    if db is not None:
+                        await UserCRUD.update_bd(user_state, db)
                 return None
 
             return server_response
@@ -84,10 +112,13 @@ def send_action(seconds: float=0, action: str='typing'):
     def decorator(func):
         async def wrapper(self, *args, **kwargs):
             logger.debug('args: %s, kwargs: %s', args, kwargs)
-            chat_id = kwargs.get('chat_id')
+            chat_id = _resolve_arg(func, (self, *args), kwargs, 'chat_id')
             logger.info('chat_id is %s', chat_id)
 
-            from app.main import client
+            client = _resolve_http_client(self, kwargs)
+            if client is None:
+                logger.error('http client is not available for send_action in %s', func.__name__)
+                raise RuntimeError('http client is required for send_action')
 
             await client.post(url=send_action_url, json={
                 'chat_id': chat_id,
@@ -102,4 +133,3 @@ def send_action(seconds: float=0, action: str='typing'):
         return wrapper
 
     return decorator
-

@@ -3,7 +3,6 @@ import logging
 from app.telegram_utils.utils import update_bd, valid_answer, send_message
 from app.telegram_utils.bottom_funcs import send_keyboard
 from app.telegram_utils.bottoms import lang_bottoms, LANGUAGES
-from app.dependencies import db
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.decorators import send_action
@@ -16,7 +15,7 @@ class StartFuncs:
 
     @classmethod
     @send_action()
-    async def choice_native_lang(cls, user_state: User, chat_id: int, text: str, client: AsyncClient):
+    async def choice_native_lang(cls, user_state: User, chat_id: int, text: str, db: AsyncSession, client: AsyncClient):
 
         user_state.state = 'await_native_lang'
         user_state.native_lang = ''

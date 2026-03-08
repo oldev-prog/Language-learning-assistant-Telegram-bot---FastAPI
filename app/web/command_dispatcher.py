@@ -38,7 +38,7 @@ class CommandDispatcher:
 
     async def handle_start(self, user_states: User, chat_id: int, text: str, client: AsyncClient, db: AsyncSession, msg_id: int):
 
-        await StartFuncs.choice_native_lang(user_state=user_states, chat_id=chat_id, text=text, client=self.client)
+        await StartFuncs.choice_native_lang(user_state=user_states, chat_id=chat_id, text=text, db=db, client=self.client)
         return JSONResponse(
             {
                 'success': True, 'details': f'language {user_states.native_lang} has been successfully updated.'
@@ -83,4 +83,3 @@ class CommandDispatcher:
                 'success': False, 'details': 'was sent invalid command'
             }
         )
-
